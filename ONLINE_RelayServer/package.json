@@ -1,0 +1,13 @@
+{
+  "name": "bvn-online-relay",
+  "version": "1.0.0",
+  "description": "BleachVsNaruto online 2P relay server (room code + TCP/UDP tunnel)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}

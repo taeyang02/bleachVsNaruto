@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bvn-online-relay
+  namespace: bvn-online
+  labels:
+    app.kubernetes.io/name: bvn-online-relay
+    app.kubernetes.io/component: relay
+spec:
+  # Room state is in-memory — NEVER scale above 1.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bvn-online-relay
+      app.kubernetes.io/component: relay
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bvn-online-relay
+        app.kubernetes.io/component: relay
+    spec:
+      # Single public node (27.72.232.213): bind host port 17511 for game TCP.
+      # Traefik only covers HTTP/HTTPS — raw game TCP must not go through Ingress.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: relay
+          # Build/push then set your registry, e.g.:
+          #   registry.thaiduongdong.xyz/bvn/online-relay:1.0.0
+          # Or load into node: docker build -t bvn-online-relay:1.0.0 .
+          image: bvn-online-relay:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp-relay
+              containerPort: 17511
+              hostPort: 17511
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: bvn-online-relay-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: 17511
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 17511
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL

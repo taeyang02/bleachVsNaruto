@@ -1,0 +1,203 @@
+/*
+ * Copyright (C) 2021-2024, 5DPLAY Game Studio
+ * All rights reserved.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package net.play5d.game.bvn.ui.select {
+import flash.display.DisplayObject;
+import flash.display.Sprite;
+import flash.geom.Point;
+import flash.utils.setTimeout;
+
+import net.play5d.game.bvn.data.GameData;
+import net.play5d.game.bvn.data.GameMode;
+import net.play5d.game.bvn.input.GameInputType;
+import net.play5d.game.bvn.utils.ResUtils;
+
+public class SelectIndexUI extends Sprite {
+    include '../../../../../../../include/_INCLUDE_.as';
+
+    public static var SHOW_MODE:int = 0;
+
+    public function SelectIndexUI() {
+        super();
+
+        buildItems();
+        initSelect();
+
+    }
+    public var onFinish:Function;
+    private var _p1Group:SelectIndexUIGroup;
+    private var _p2Group:SelectIndexUIGroup;
+
+    public function getP1Order():Array {
+        return _p1Group.getOrder();
+    }
+
+    public function getP2Order():Array {
+        return _p2Group.getOrder();
+    }
+
+    public function setP1Order(v:Array):void {
+        _p1Group.setOrder(v);
+    }
+
+    public function setP2Order(v:Array):void {
+        _p2Group.setOrder(v);
+    }
+
+    public function p1Finish():Boolean {
+        return _p1Group.isFinish;
+    }
+
+    public function p2Finish():Boolean {
+        return _p2Group.isFinish;
+    }
+
+    public function isFinish():Boolean {
+        return _p1Group.isFinish && _p2Group.isFinish;
+    }
+
+    public function destory():void {
+        if (_p1Group) {
+            _p1Group.destory();
+            _p1Group = null;
+        }
+        if (_p2Group) {
+            _p2Group.destory();
+            _p2Group = null;
+        }
+        onFinish = null;
+    }
+
+    private function buildItems():void {
+        _p1Group = new SelectIndexUIGroup();
+        _p2Group = new SelectIndexUIGroup();
+
+        if (SHOW_MODE == 1) {
+            _p1Group.x = 35;
+            _p2Group.x = 535;
+            _p1Group.setFighterScale(0.75);
+            _p2Group.setFighterScale(0.75);
+            _p1Group.fighterOffset.x = -5;
+            _p2Group.fighterOffset.x = 40;
+
+            _p1Group.setFZScale(0.8);
+            _p2Group.setFZScale(0.8);
+            _p1Group.fzx = -5;
+            _p2Group.fzx = 34;
+        }
+        else {
+            _p1Group.x = 70;
+            _p2Group.x = 480;
+
+            _p1Group.fzx = -30;
+            _p2Group.fzx = 25;
+        }
+
+        _p1Group.y = 85;
+        _p2Group.y = 85;
+
+        var p1class:Class = $select$SP_selectBarItemP1;
+        var p2class:Class = $select$SP_selectBarItemP2;
+
+        _p1Group.build(p1class, GameData.I.p1Select);
+        _p2Group.build(p2class, GameData.I.p2Select);
+
+        addChild(_p1Group);
+        addChild(_p2Group);
+
+    }
+
+    private function initSelect():void {
+        switch (GameMode.currentMode) {
+        case GameMode.TEAM_ARCADE:
+            initP1Group();
+            initP2Group(null, true);
+            break;
+        case GameMode.TEAM_VS_PEOPLE:
+            initP1Group();
+            initP2Group(GameInputType.P2, false);
+            break;
+        case GameMode.TEAM_VS_CPU:
+        case GameMode.TEAM_WATCH:
+            initP1Group(function ():void {
+                initP2Group(GameInputType.P1, false);
+            });
+            break;
+        default:
+            _p1Group.isFinish = true;
+            _p2Group.isFinish = true;
+        }
+    }
+
+    private function initP1Group(finishBack:Function = null):void {
+        var arrow:DisplayObject = ResUtils.I.createDisplayObject(
+                ResUtils.swfLib.select,
+                '$loading$SP_selectArrow1'
+        );
+
+        _p1Group.initArrow(arrow, new Point(-10, 30));
+        _p1Group.setKey(GameInputType.P1);
+
+        if (finishBack != null) {
+            _p1Group.onFinish = function ():void {
+                finishBack();
+                finishBack = null;
+                onSelectFinish();
+            };
+        }
+        else {
+            _p1Group.onFinish = onSelectFinish;
+        }
+    }
+
+    private function initP2Group(type:String, autoSelect:Boolean):void {
+        var arrow:DisplayObject = ResUtils.I.createDisplayObject(
+                ResUtils.swfLib.select, '$loading$SP_selectArrow2'
+        );
+
+        _p2Group.initArrow(arrow, new Point(SHOW_MODE == 1 ? 230 : 260, 30));
+
+        if (autoSelect) {
+            _p2Group.autoSelect();
+        }
+        else {
+            _p2Group.setKey(type);
+        }
+        _p2Group.onFinish = onSelectFinish;
+    }
+
+    private function onSelectFinish():void {
+        if (_p1Group.isFinish && _p2Group.isFinish) {
+            if (onFinish != null) {
+                setTimeout(delayCall, 1000);
+            }
+            return;
+        }
+
+        function delayCall():void {
+            if (onFinish == null) {
+                return;
+            }
+            onFinish();
+            onFinish = null;
+        }
+
+    }
+
+}
+}

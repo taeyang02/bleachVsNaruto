@@ -1,0 +1,30 @@
+{
+  "files": [
+    "README.md",
+    "README_en.md",
+    "README_ja.md",
+    "README_ko.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "commitType": "docs",
+  "commitConvention": "angular",
+  "contributors": [
+    {
+      "login": "raionchanqwq",
+      "name": "ライオンちゃん",
+      "avatar_url": "https://avatars.githubusercontent.com/u/214450127?v=4",
+      "profile": "https://github.com/raionchanqwq",
+      "contributions": [
+        "doc",
+        "translation"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "skipCi": true,
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "projectName": "BleachVsNaruto",
+  "projectOwner": "5DPLAY-Game-Studio"
+}

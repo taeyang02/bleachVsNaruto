@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bvn-online-relay
+  namespace: bvn-online
+  labels:
+    app.kubernetes.io/name: bvn-online-relay
+    app.kubernetes.io/component: relay
+spec:
+  # ClusterIP for in-cluster discovery.
+  # Public access uses hostNetwork port 17511 on the node (see deployment.yaml).
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: bvn-online-relay
+    app.kubernetes.io/component: relay
+  ports:
+    - name: tcp-relay
+      port: 17511
+      targetPort: 17511
+      protocol: TCP

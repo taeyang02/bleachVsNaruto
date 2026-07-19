@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="Flex" version="4">
+  <component name="FlexBuildConfigurationManager" active="FighterTester">
+    <configurations>
+      <configuration name="FighterTester" target-platform="Desktop" pure-as="true" main-class="FighterTester" output-file="FighterTester.swf" output-folder="$MODULE_DIR$/../out/production/SHELL_Dev">
+        <dependencies>
+          <entries>
+            <entry module-name="CORE_KernelLogic" build-configuration-name="CORE_KernelLogic">
+              <dependency linkage="Merged" />
+            </entry>
+            <entry module-name="LIB_KyoLib" build-configuration-name="LIB_KyoLib">
+              <dependency linkage="Merged" />
+            </entry>
+            <entry module-name="CORE_Utils" build-configuration-name="CORE_Utils">
+              <dependency linkage="Merged" />
+            </entry>
+            <entry module-name="CORE_Shared" build-configuration-name="CORE_Shared">
+              <dependency linkage="Merged" />
+            </entry>
+            <entry library-id="a4f07e4f-cc8c-4f6b-a35a-75584191119f">
+              <dependency linkage="External" />
+            </entry>
+            <entry library-id="735f8296-a9f5-4757-8b5a-12af6adfeb93">
+              <dependency linkage="Merged" />
+            </entry>
+          </entries>
+          <sdk name="flex4.16.1-air51.0.1.1" />
+        </dependencies>
+        <compiler-options>
+          <map>
+            <entry key="metadata.contributor" value="5dplay.net" />
+            <entry key="metadata.creator" value="5dplay.net" />
+            <entry key="metadata.date" value="10.04.2024" />
+            <entry key="metadata.description" value="BleachVsNaruto" />
+            <entry key="metadata.language" value="zh_CN" />
+            <entry key="metadata.publisher" value="5DPLAY Game Studio" />
+            <entry key="metadata.title" value="FighterTester" />
+          </map>
+          <option name="additionalOptions" value="-swf-version 37 -advanced-telemetry=true -optimize=false -use-network=false -use-direct-blit=true -use-gpu=true -source-path+=CORE_KernelLogic/global -includes _ALL_GLOBALS_" />
+        </compiler-options>
+        <packaging-air-desktop use-generated-descriptor="false" custom-descriptor-path="$MODULE_DIR$/src/FighterTester-app.xml" package-file-name="FighterTester">
+          <files-to-package>
+            <FilePathAndPathInPackage file-path="$MODULE_DIR$/../shared/assets/assets" path-in-package="assets" />
+            <FilePathAndPathInPackage file-path="$MODULE_DIR$/lib/icon" path-in-package="icon" />
+          </files-to-package>
+        </packaging-air-desktop>
+        <packaging-android />
+        <packaging-ios />
+      </configuration>
+    </configurations>
+    <compiler-options />
+  </component>
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+    </content>
+    <content url="file://$MODULE_DIR$/../shared/_tmp/dev">
+      <sourceFolder url="file://$MODULE_DIR$/../shared/_tmp/dev" isTestSource="false" />
+    </content>
+    <orderEntry type="jdk" jdkName="flex4.16.1-air51.0.1.1" jdkType="Flex SDK Type (new)" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="CORE_Shared" exported="" />
+    <orderEntry type="module" module-name="LIB_KyoLib" exported="" />
+    <orderEntry type="module" module-name="CORE_KernelLogic" exported="" />
+    <orderEntry type="module" module-name="CORE_Utils" exported="" />
+    <orderEntry type="module-library" exported="">
+      <library type="flex">
+        <properties id="a4f07e4f-cc8c-4f6b-a35a-75584191119f" />
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/../shared/lib/swc" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+        <jarDirectory url="file://$MODULE_DIR$/../shared/lib/swc" recursive="false" />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" exported="">
+      <library type="flex">
+        <properties id="735f8296-a9f5-4757-8b5a-12af6adfeb93" />
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/lib/swc" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+        <jarDirectory url="file://$MODULE_DIR$/lib/swc" recursive="false" />
+      </library>
+    </orderEntry>
+  </component>
+</module>

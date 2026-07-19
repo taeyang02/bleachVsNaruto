@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bvn-online-relay-config
+  namespace: bvn-online
+  labels:
+    app.kubernetes.io/name: bvn-online-relay
+    app.kubernetes.io/component: relay
+data:
+  PORT: "17511"
+  HOST: "0.0.0.0"
+  # Idle room timeout (ms) — 30 minutes
+  ROOM_TTL: "1800000"

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bvn-online
+  labels:
+    app.kubernetes.io/name: bvn-online-relay
+    app.kubernetes.io/part-of: bleach-vs-naruto

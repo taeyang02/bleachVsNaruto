@@ -1,0 +1,4 @@
+/assets/*/
+/assets/*.*
+!/assets/.gitkeep
+!/assets/config/
