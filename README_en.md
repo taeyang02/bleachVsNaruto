@@ -142,4 +142,4 @@ The following is a list of translators who contributed:
 
 [![Twitter:5Dplay](https://img.shields.io/twitter/follow/5Dplay)](https://x.com/5DPLAY) [![BiliBili:死神VS火影吧](https://badgen.net/badge/BiliBili/死神VS火影吧/)](https://space.bilibili.com/1340107883)
 
-[GPL-3.0]: https://www.gnu.org/licenses/gpl-3.0.html
+[GPL-3.0]: https://www.gnu.org/licenses/gpl-3.0.html 
