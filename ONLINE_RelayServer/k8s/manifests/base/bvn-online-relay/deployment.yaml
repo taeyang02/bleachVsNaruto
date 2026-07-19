@@ -29,7 +29,7 @@ spec:
       containers:
         - name: relay
           # Build/push then set your registry, e.g.:
-          #   registry.thaiduongdong.xyz/bvn/online-relay:1.0.0
+          #   registry.dongthaiduong.com/bvn/online-relay:1.0.0
           # Or load into node: docker build -t bvn-online-relay:1.0.0 .
           image: bvn-online-relay:1.0.0
           imagePullPolicy: IfNotPresent

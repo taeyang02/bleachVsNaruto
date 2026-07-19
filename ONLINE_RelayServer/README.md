@@ -28,7 +28,7 @@ Giống pattern sẵn có trên server:
 
 | Thành phần | Ghi chú |
 |------------|---------|
-| Domain | `*.thaiduongdong.xyz` (Cloudflare) |
+| Domain | `*.dongthaiduong.com` (Cloudflare) |
 | Public IP | `27.72.232.213` |
 | Ingress HTTP | Traefik (`traefik-proxy-ingress`) — **không** dùng cho game TCP |
 | Expose game | `hostNetwork` + port **17511/tcp** trên node |
@@ -71,14 +71,14 @@ kubectl -n bvn-online logs -f deploy/bvn-online-relay
 sudo ufw allow 17511/tcp || true
 
 # Cloudflare DNS (DNS only / không proxy):
-#   bvn.thaiduongdong.xyz  A  27.72.232.213
+#   bvn.dongthaiduong.com  A  27.72.232.213
 ```
 
 ### 5) Client game `config/online.json`
 
 ```json
 {
-  "host": "bvn.thaiduongdong.xyz",
+  "host": "bvn.dongthaiduong.com",
   "port": 17511,
   "lockKeyframe": 6
 }
@@ -90,7 +90,7 @@ Hoặc dùng thẳng IP `27.72.232.213` nếu chưa tạo DNS.
 
 ```bash
 # từ máy ngoài
-nc -vz bvn.thaiduongdong.xyz 17511
+nc -vz bvn.dongthaiduong.com 17511
 # hoặc
 nc -vz 27.72.232.213 17511
 ```
