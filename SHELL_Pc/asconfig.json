@@ -1,0 +1,43 @@
+{
+    /******************** SHELL_Pc ********************/
+
+    "type": "app",
+    "config": "air",
+
+    "compilerOptions": {
+        "debug": false,
+        "swf-version": 37,
+        "advanced-telemetry": true,
+        "optimize": true,
+        "use-network": true,
+        "use-direct-blit": true,
+        "use-gpu": true,
+
+        "source-path": [
+            "src",
+            "../CORE_KernelLogic/global",
+            "../shared/_tmp/pc"
+        ],
+
+        "library-path": [
+            "../out/production/CORE_KernelLogic/CORE_KernelLogic.swc",
+            "../out/production/LIB_KyoLib/LIB_KyoLib.swc",
+            "../out/production/CORE_Utils/CORE_Utils.swc",
+            "../out/production/CORE_Shared/CORE_Shared.swc"
+        ],
+        "external-library-path": [
+            "../shared/lib/swc"
+        ],
+        "include-libraries": [
+        ],
+
+        "output": "../out/production/SHELL_Pc/launch.swf"
+    },
+
+    "application": "src/launch-app.xml",
+    "mainClass": "launch",
+    "copySourcePathAssets": true,
+    "additionalOptions": [
+        "-includes=_ALL_GLOBALS_"
+    ]
+}

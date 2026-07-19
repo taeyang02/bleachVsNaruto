@@ -46,6 +46,32 @@
 
 - 单击 ***运行(U) -> 调试...*** 选项或按下 ***Alt + Shift + F9*** 快捷键，在弹出的 ***调试*** 菜单中选择 ***SHELL_Dev FighterTester***，编译完成片刻后将执行编译结果
 
+## GitHub Actions 构建 Windows（无本地 Windows 机）
+
+仓库已提供 CI：`.github/workflows/build-windows.yml`。
+
+在 GitHub 页面打开 **Actions → Build Windows (SHELL_Pc) → Run workflow**：
+
+1. 填写与二进制资源一致的 TagAssets 标签（例如 `3.7.0.0.12212024_alpha`）
+2. 选择产物：`bundle`（推荐，Windows 免安装目录 + zip）/ `air` / `swf`
+3. 运行结束后在 Artifacts 下载 `bleachvsnaruto-windows-*`
+
+本地等价命令（需已准备 SDK、子模块、TagAssets）：
+
+```powershell
+$env:FLEX_HOME = 'D:\sdk\flex4.16.1-air51.0.1.1'
+git submodule update --init --recursive
+# 将 TagAssets 的 shared/ 覆盖到本仓库 shared/
+npm install -g asconfigc
+./tools/ci/build-windows.ps1 -PackageTarget bundle
+```
+
+说明：
+
+- CI 使用 `windows-latest`，通过 `asconfigc` + Flex/AIR SDK 命令行打包，不依赖 IntelliJ
+- 必须拉取子模块 `LIB_KyoLib` 与 TagAssets 素材，否则编译失败
+- 签名默认使用 `keysign/5dplay.p12`（密码见 `keysign/README.md`）；可用 Secret `AIR_KEYSTORE_PASSWORD` 覆盖
+
 [Intellij IDEA 2022.1.4]: https://download.jetbrains.com/idea/ideaIU-2022.1.4.exe?_gl=1*ctjhlb*_gcl_au*MTMxNjgyNzEyOC4xNzI0ODYxMjEz*_ga*MTE0MDQ4OTE2Ni4xNzI0ODYxMjEx*_ga_9J976DJZ68*MTcyODI2ODM2NC44LjEuMTcyODI2ODM3MC41NC4wLjA.
 [flex4.16.1-air51.0.1.1]: https://github.com/5DPLAY-Game-Studio/BleachVsNaruto_FlexSDK/releases/download/flex4.16.1-air51.0.1.1/flex4.16.1-air51.0.1.1.rar
 [Apache FlexSDK]: https://flex.apache.org/

@@ -1,0 +1,148 @@
+name: Build Windows (SHELL_Pc)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_assets:
+        description: 'BleachVsNaruto_TagAssets tag (must match game binary assets)'
+        required: true
+        default: '3.7.0.0.12212024_alpha'
+      package_target:
+        description: 'bundle = captive EXE folder+zip | air = .air | swf = compile only'
+        required: true
+        default: 'bundle'
+        type: choice
+        options:
+          - bundle
+          - air
+          - swf
+  push:
+    branches: [build-windows]
+    paths:
+      - 'SHELL_Pc/**'
+      - 'CORE_*/**'
+      - 'LIB_KyoLib/**'
+      - 'shared/**'
+      - 'tools/ci/**'
+      - '.github/workflows/build-windows.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'SHELL_Pc/**'
+      - 'CORE_*/**'
+      - 'LIB_KyoLib/**'
+      - 'shared/**'
+      - 'tools/ci/**'
+      - '.github/workflows/build-windows.yml'
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows AIR build
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    env:
+      FLEX_SDK_NAME: flex4.16.1-air51.0.1.1
+      FLEX_SDK_URL: https://github.com/5DPLAY-Game-Studio/BleachVsNaruto_FlexSDK/releases/download/flex4.16.1-air51.0.1.1/flex4.16.1-air51.0.1.1.rar
+      TAG_ASSETS_REPO: 5DPLAY-Game-Studio/BleachVsNaruto_TagAssets
+      PACKAGE_TARGET: ${{ github.event.inputs.package_target || 'bundle' }}
+      TAG_ASSETS: ${{ github.event.inputs.tag_assets || '3.7.0.0.12212024_alpha' }}
+      KEYSTORE_PASS: ${{ secrets.AIR_KEYSTORE_PASSWORD || '123456' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install asconfigc
+        run: npm install -g asconfigc
+
+      - name: Cache Flex SDK
+        id: cache-flex
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/${{ env.FLEX_SDK_NAME }}
+          key: flex-sdk-${{ env.FLEX_SDK_NAME }}-win
+
+      - name: Download & extract Flex/AIR SDK
+        if: steps.cache-flex.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP $env:FLEX_SDK_NAME
+          $rar = Join-Path $env:RUNNER_TEMP "$($env:FLEX_SDK_NAME).rar"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Write-Host "Downloading Flex SDK..."
+          Invoke-WebRequest -Uri $env:FLEX_SDK_URL -OutFile $rar
+          choco install 7zip -y --no-progress
+          & "C:\Program Files\7-Zip\7z.exe" x $rar "-o$dest" -y
+          # SDK may extract into a nested folder with the same name
+          $nested = Join-Path $dest $env:FLEX_SDK_NAME
+          if (Test-Path (Join-Path $nested 'bin\adt.bat')) {
+            Remove-Item $dest -Recurse -Force
+            Move-Item $nested $dest
+          }
+          if (-not (Test-Path (Join-Path $dest 'bin\adt.bat'))) {
+            Get-ChildItem $dest -Recurse -Filter adt.bat | Select-Object -First 5 FullName
+            throw 'adt.bat not found after extract'
+          }
+
+      - name: Set FLEX_HOME
+        shell: pwsh
+        run: |
+          $flex = Join-Path $env:RUNNER_TEMP $env:FLEX_SDK_NAME
+          if (-not (Test-Path (Join-Path $flex 'bin\adt.bat'))) {
+            $found = Get-ChildItem $flex -Recurse -Filter adt.bat | Select-Object -First 1
+            if (-not $found) { throw 'FLEX_HOME invalid' }
+            $flex = $found.Directory.Parent.FullName
+          }
+          echo "FLEX_HOME=$flex" >> $env:GITHUB_ENV
+          Write-Host "FLEX_HOME=$flex"
+
+      - name: Fetch TagAssets and overlay shared/
+        shell: pwsh
+        run: |
+          $tag = $env:TAG_ASSETS
+          $zip = Join-Path $env:RUNNER_TEMP "TagAssets-$tag.zip"
+          $url = "https://github.com/$($env:TAG_ASSETS_REPO)/archive/refs/tags/$tag.zip"
+          Write-Host "Downloading TagAssets $tag ..."
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          $extract = Join-Path $env:RUNNER_TEMP "TagAssets-$tag"
+          if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
+          Expand-Archive -Path $zip -DestinationPath $extract -Force
+          $inner = Get-ChildItem $extract -Directory | Select-Object -First 1
+          $srcShared = Join-Path $inner.FullName 'shared'
+          if (-not (Test-Path $srcShared)) { throw "TagAssets missing shared/ ($tag)" }
+          Write-Host "Overlay $srcShared -> ./shared"
+          Copy-Item -Path (Join-Path $srcShared '*') -Destination 'shared' -Recurse -Force
+
+      - name: Build SHELL_Pc
+        shell: pwsh
+        run: |
+          ./tools/ci/build-windows.ps1 -PackageTarget $env:PACKAGE_TARGET -KeystorePass $env:KEYSTORE_PASS
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bleachvsnaruto-windows-${{ github.sha }}
+          path: |
+            dist/**
+            out/production/SHELL_Pc/launch.swf
+          if-no-files-found: error
+          retention-days: 14
