@@ -66,10 +66,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install asconfigc
         run: npm install -g asconfigc
@@ -79,29 +79,49 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/${{ env.FLEX_SDK_NAME }}
-          key: flex-sdk-${{ env.FLEX_SDK_NAME }}-win
+          key: flex-sdk-${{ env.FLEX_SDK_NAME }}-win-v2
 
       - name: Download & extract Flex/AIR SDK
         if: steps.cache-flex.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $dest = Join-Path $env:RUNNER_TEMP $env:FLEX_SDK_NAME
-          $rar = Join-Path $env:RUNNER_TEMP "$($env:FLEX_SDK_NAME).rar"
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $sdkName = $env:FLEX_SDK_NAME
+          $final = Join-Path $env:RUNNER_TEMP $sdkName
+          $extractRoot = Join-Path $env:RUNNER_TEMP "flex-extract"
+          $rar = Join-Path $env:RUNNER_TEMP "$sdkName.rar"
+
+          if (Test-Path $final) { Remove-Item $final -Recurse -Force }
+          if (Test-Path $extractRoot) { Remove-Item $extractRoot -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
+
           Write-Host "Downloading Flex SDK..."
           Invoke-WebRequest -Uri $env:FLEX_SDK_URL -OutFile $rar
           choco install 7zip -y --no-progress
-          & "C:\Program Files\7-Zip\7z.exe" x $rar "-o$dest" -y
-          # SDK may extract into a nested folder with the same name
-          $nested = Join-Path $dest $env:FLEX_SDK_NAME
+          & "C:\Program Files\7-Zip\7z.exe" x $rar "-o$extractRoot" -y
+          if ($LASTEXITCODE -ne 0) { throw "7z extract failed: $LASTEXITCODE" }
+
+          # Prefer nested folder named like the SDK; otherwise use folder that contains bin/adt.bat
+          $sdkRoot = $null
+          $nested = Join-Path $extractRoot $sdkName
           if (Test-Path (Join-Path $nested 'bin\adt.bat')) {
-            Remove-Item $dest -Recurse -Force
-            Move-Item $nested $dest
+            $sdkRoot = $nested
           }
-          if (-not (Test-Path (Join-Path $dest 'bin\adt.bat'))) {
-            Get-ChildItem $dest -Recurse -Filter adt.bat | Select-Object -First 5 FullName
-            throw 'adt.bat not found after extract'
+          else {
+            $adt = Get-ChildItem $extractRoot -Recurse -Filter adt.bat -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+            if (-not $adt) {
+              Get-ChildItem $extractRoot | Format-Table Name, Mode
+              throw 'adt.bat not found after extract'
+            }
+            $sdkRoot = $adt.Directory.Parent.FullName
           }
+
+          Write-Host "SDK root: $sdkRoot"
+          Move-Item -Path $sdkRoot -Destination $final
+          if (-not (Test-Path (Join-Path $final 'bin\adt.bat'))) {
+            throw "FLEX_HOME incomplete: $final"
+          }
+          Write-Host "Extracted to $final"
 
       - name: Set FLEX_HOME
         shell: pwsh
