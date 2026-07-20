@@ -156,19 +156,84 @@ $patched = 0
 foreach ($f in $asFiles) {
     $text = [System.IO.File]::ReadAllText($f.FullName)
     $orig = $text
+
     # Type annotations / casts only — string literals like '$common$MC_menuBtn' stay intact
     $text = [regex]::Replace($text, '(?<=:\s*)\$[a-z0-9_]+\$[A-Za-z0-9_]+', 'MovieClip')
     $text = [regex]::Replace($text, '(?<=\bas\s+)\$[a-z0-9_]+\$[A-Za-z0-9_]+', 'MovieClip')
+
+    # Class literals: var x:Class = $select$SP_foo;
+    $text = [regex]::Replace(
+        $text,
+        '=\s*\$([a-z0-9_]+)\$([A-Za-z0-9_]+)\s*;',
+        {
+            param($m)
+            $p = $m.Groups[1].Value
+            $c = $m.Groups[2].Value
+            " = ResUtils.I.getItemClass(ResUtils.swfLib.$p, '`$$p`$$c');"
+        }
+    )
+
+    # new $prefix$Class()
+    $text = [regex]::Replace(
+        $text,
+        'new\s+\$([a-z0-9_]+)\$([A-Za-z0-9_]+)\s*\(\s*\)',
+        {
+            param($m)
+            $p = $m.Groups[1].Value
+            $c = $m.Groups[2].Value
+            "ResUtils.I.createDisplayObject(ResUtils.swfLib.$p, '`$$p`$$c')"
+        }
+    )
+
+    # ui is $prefix$Class → accept new or legacy linkage class names
+    $text = [regex]::Replace(
+        $text,
+        '(\w+)\s+is\s+\$([a-z0-9_]+)\$([A-Za-z0-9_]+)',
+        {
+            param($m)
+            $v = $m.Groups[1].Value
+            $c = $m.Groups[3].Value
+            "(flash.utils.getQualifiedClassName($v).indexOf('$c') >= 0 || flash.utils.getQualifiedClassName($v).indexOf('selected_item_p1') >= 0)"
+        }
+    )
+
     if ($text -ne $orig) {
-        # Ensure MovieClip import if file now references it and lacks import
-        if ($text -match '\bMovieClip\b' -and $text -notmatch 'import flash\.display\.MovieClip') {
-            if ($text -match '(import flash\.display\.[^\r\n]+;\r?\n)') {
-                $text = $text -replace '(import flash\.display\.[^\r\n]+;\r?\n)', "`$1import flash.display.MovieClip;`r`n"
-            }
-            elseif ($text -match '(package [^\r\n]+ \{\r?\n)') {
-                $text = $text -replace '(package [^\r\n]+ \{\r?\n)', "`$1import flash.display.MovieClip;`r`n"
+        # Ensure MovieClip import next to existing flash.display imports (package + file-private)
+        if ($text -match '\bMovieClip\b') {
+            $text = $text.Replace(
+                'import flash.display.DisplayObject;',
+                "import flash.display.MovieClip;`r`nimport flash.display.DisplayObject;"
+            )
+            $text = $text.Replace(
+                'import flash.display.Sprite;',
+                "import flash.display.MovieClip;`r`nimport flash.display.Sprite;"
+            )
+            # Deduplicate consecutive MovieClip imports
+            $text = [regex]::Replace(
+                $text,
+                '(import flash\.display\.MovieClip;\r?\n){2,}',
+                "import flash.display.MovieClip;`r`n"
+            )
+            if ($text -notmatch 'import flash\.display\.MovieClip;') {
+                $text = [regex]::Replace(
+                    $text,
+                    '(package\s+[^\r\n]+\{)\r?\n',
+                    "`$1`r`nimport flash.display.MovieClip;`r`n",
+                    1
+                )
             }
         }
+
+        # Ensure ResUtils import if we rewrote Class/new usages
+        if ($text -match 'ResUtils\.I\.(getItemClass|createDisplayObject)' -and $text -notmatch 'import net\.play5d\.game\.bvn\.utils\.ResUtils') {
+            $text = [regex]::Replace(
+                $text,
+                '(package\s+[^\r\n]+\{)\r?\n',
+                "`$1`r`nimport net.play5d.game.bvn.utils.ResUtils;`r`n",
+                1
+            )
+        }
+
         [System.IO.File]::WriteAllText($f.FullName, $text)
         $patched++
     }
