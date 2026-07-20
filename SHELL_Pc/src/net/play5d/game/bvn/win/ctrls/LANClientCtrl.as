@@ -18,10 +18,9 @@
 
 package net.play5d.game.bvn.win.ctrls {
 import flash.events.TimerEvent;
-import flash.text.TextField;
-import flash.text.TextFormat;
 import flash.utils.Timer;
 import flash.utils.clearTimeout;
+import flash.utils.getTimer;
 import flash.utils.setTimeout;
 
 import net.play5d.game.bvn.MainGame;
@@ -45,6 +44,7 @@ import net.play5d.game.bvn.win.sockets.udp.UDPDataVO;
 import net.play5d.game.bvn.win.sockets.udp.UDPSocket;
 import net.play5d.game.bvn.win.utils.JsonUtils;
 import net.play5d.game.bvn.win.utils.LANUtils;
+import net.play5d.game.bvn.win.utils.LanPingHUD;
 import net.play5d.game.bvn.win.utils.LanSyncType;
 import net.play5d.game.bvn.win.utils.LockFrameLogic;
 import net.play5d.game.bvn.win.utils.MsgType;
@@ -66,7 +66,6 @@ public class LANClientCtrl {
     public function LANClientCtrl() {
     }
     public var active:Boolean;
-    private var _delayText:TextField;
     private var _socket:SocketClient;
     private var _udpSocket:UDPSocket;
     private var _room:LANRoomState;
@@ -75,13 +74,13 @@ public class LANClientCtrl {
     private var _selectLogic:SelectFighterClientLogic;
 //		private var _connGameLogic:OptimisticClientLogic;
     private var _connGameLogic:LockFrameClientLogic;
-    private var _delayCache:Array = [];
     private var _syncRoundFinishInt:int;
     private var _syncGameFinishInt:int;
     private var _syncGameStartInt:int;
     private var _host:HostVO;
     private var _onFindHostBack:Function;
     private var _findHostTimer:Timer;
+    private var _pingTimer:Timer;
 
     public function initlize():void {
         if (LANGameCtrl.I.isOnline) {
@@ -120,47 +119,18 @@ public class LANClientCtrl {
     public function setRoom(v:LANRoomState):void {
         _room = v;
         sendJoinIn();
+        startPing();
     }
 
     /**
-     * 更新延迟（毫秒）
+     * Lock-frame delay sample (fight). Prefer TCP ping HUD; keep as backup samples.
      */
     public function updateDelay(v:int):void {
-        if (!_delayText) {
-            return;
+        var delay:int = v - 100;
+        if (delay < 0) {
+            delay = 0;
         }
-
-        _delayCache.push(v);
-
-        if (_delayCache.length >= 10) {
-
-            var count:int = 0;
-            for each(var i:int in _delayCache) {
-                count += i;
-            }
-            var delay:int = count / _delayCache.length;
-
-            _delayCache = [];
-
-            var color:uint = 0xff0000;
-            if (delay < 200) {
-                color = 0x00FF00;
-            }
-            else if (delay < 500) {
-                color = 0xFFFF00;
-            }
-
-            delay -= 100;
-            if (delay < 0) {
-                delay = 0;
-            }
-
-            _delayText.text = delay + ' ms';
-
-            _delayText.textColor = color;
-
-        }
-
+        LanPingHUD.I.update(delay);
     }
 
     public function join(host:HostVO, back:Function):void {
@@ -227,6 +197,7 @@ public class LANClientCtrl {
     }
 
     public function dispose():void {
+        stopPing();
         cancelFindHost();
         if (LANGameCtrl.I.isOnline) {
             var relay:OnlineRelayClient = OnlineRelayClient.I;
@@ -274,13 +245,7 @@ public class LANClientCtrl {
 
         _room = null;
 
-        _delayText                   = new TextField();
-        _delayText.text              = '0ms';
-        var tf:TextFormat            = new TextFormat();
-        tf.color                     = 0xffffff;
-        tf.size                      = 16;
-        _delayText.defaultTextFormat = tf;
-        MainGame.I.stage.addChild(_delayText);
+        startPing();
 
         _selectLogic = new SelectFighterClientLogic();
         _selectLogic.init();
@@ -318,16 +283,6 @@ public class LANClientCtrl {
             _connGameLogic = null;
         }
 
-        if (_delayText) {
-            try {
-                _delayText.parent.removeChild(_delayText);
-            }
-            catch (e:Error) {
-                trace(e);
-            }
-            _delayText = null;
-        }
-
         GameEvent.removeEventListener(GameEvent.ROUND_START, onRoundStart);
 
         active                             = false;
@@ -352,9 +307,11 @@ public class LANClientCtrl {
         MainGame.stageCtrl.goStage(room);
         room.clientMode(_host);
         room.pushChart('Match finished — waiting for host to start');
+        startPing();
     }
 
     public function gameEnd():void {
+        stopPing();
         active = false;
         if (_selectLogic) {
             _selectLogic.dispose();
@@ -363,16 +320,6 @@ public class LANClientCtrl {
         if (_connGameLogic) {
             _connGameLogic.dispose();
             _connGameLogic = null;
-        }
-
-        if (_delayText) {
-            try {
-                _delayText.parent.removeChild(_delayText);
-            }
-            catch (e:Error) {
-                trace(e);
-            }
-            _delayText = null;
         }
 
         GameCtrl.I.autoEndRoundAble       = true;
@@ -543,15 +490,18 @@ public class LANClientCtrl {
                 var type:int = arr[1];
 
                 switch (type) {
+                case LanSyncType.PING:
+                    sendTCP(['SYNC', LanSyncType.PONG, arr[2]]);
+                    break;
+                case LanSyncType.PONG:
+                    LanPingHUD.I.update(getTimer() - int(arr[2]));
+                    break;
                 case LanSyncType.GAME_START:
                     syncStartGame();
                     break;
                 case LanSyncType.ROUND_FINISH:
                     _connGameLogic.enabled = false;
                     _connGameLogic.reset();
-//							syncRoundFinish(arr);
-//							clearTimeout(_syncRoundFinishInt);
-//							_syncRoundFinishInt = setTimeout(syncRoundFinish , 30 , arr);
 
                     KyoTimeout.setFrameout(function ():void {
                         syncRoundFinish(arr);
@@ -567,6 +517,34 @@ public class LANClientCtrl {
             }
         }
         return false;
+    }
+
+    public function startPing():void {
+        LanPingHUD.I.show();
+        if (_pingTimer) {
+            return;
+        }
+        _pingTimer = new Timer(1000);
+        _pingTimer.addEventListener(TimerEvent.TIMER, onPingTimer);
+        _pingTimer.start();
+        sendPingNow();
+    }
+
+    public function stopPing():void {
+        if (_pingTimer) {
+            _pingTimer.stop();
+            _pingTimer.removeEventListener(TimerEvent.TIMER, onPingTimer);
+            _pingTimer = null;
+        }
+        LanPingHUD.I.hide();
+    }
+
+    private function onPingTimer(e:TimerEvent):void {
+        sendPingNow();
+    }
+
+    private function sendPingNow():void {
+        sendTCP(['SYNC', LanSyncType.PING, getTimer()]);
     }
 
     private function syncStartGame():void {

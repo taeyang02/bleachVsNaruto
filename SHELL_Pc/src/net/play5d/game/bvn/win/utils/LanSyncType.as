@@ -30,6 +30,10 @@ public class LanSyncType {
     public static const ROUND_START:int  = 6;
     public static const ROUND_FINISH:int = 7;
 
+    /** TCP peer latency probe */
+    public static const PING:int = 8;
+    public static const PONG:int = 9;
+
     public function LanSyncType() {
     }
 }

@@ -18,7 +18,10 @@
 
 package net.play5d.game.bvn.win.ctrls {
 import flash.net.Socket;
+import flash.events.TimerEvent;
+import flash.utils.Timer;
 import flash.utils.clearTimeout;
+import flash.utils.getTimer;
 import flash.utils.setTimeout;
 
 import net.play5d.game.bvn.MainGame;
@@ -42,6 +45,7 @@ import net.play5d.game.bvn.win.sockets.udp.UDPDataVO;
 import net.play5d.game.bvn.win.sockets.udp.UDPSocket;
 import net.play5d.game.bvn.win.utils.JsonUtils;
 import net.play5d.game.bvn.win.utils.LANUtils;
+import net.play5d.game.bvn.win.utils.LanPingHUD;
 import net.play5d.game.bvn.win.utils.LanSyncType;
 import net.play5d.game.bvn.win.utils.LockFrameLogic;
 import net.play5d.game.bvn.win.utils.MsgType;
@@ -88,6 +92,7 @@ public class LANServerCtrl {
     private var _kickTimeoutInt:int;
 
     private var _host:HostVO;
+    private var _pingTimer:Timer;
 
     public function get host():HostVO {
         return _host;
@@ -151,6 +156,7 @@ public class LANServerCtrl {
     }
 
     public function stopServer():void {
+        stopPing();
         _host = null;
         if (LANGameCtrl.I.isOnline) {
             var relay:OnlineRelayClient = OnlineRelayClient.I;
@@ -262,6 +268,7 @@ public class LANServerCtrl {
         LanGameMenuCtrl.I.init();
 
         initSyncEvent();
+        startPing();
     }
 
     /**
@@ -306,9 +313,11 @@ public class LANServerCtrl {
         }
         room.setStartAble(_clients && _clients.length > 0);
         room.pushChart('Match finished — press Start for rematch');
+        startPing();
     }
 
     public function gameEnd():void {
+        stopPing();
         active = false;
         GameCtrl.I.backToSelectOnFightEnd = true;
         GameInterface.instance.updateInputConfig();
@@ -337,7 +346,9 @@ public class LANServerCtrl {
     }
 
     public function gameQuit():void {
+        stopPing();
         active = false;
+        GameCtrl.I.backToSelectOnFightEnd = true;
         GameInterface.instance.updateInputConfig();
         LockFrameLogic.I.dispose();
 
@@ -438,6 +449,7 @@ public class LANServerCtrl {
                 _room.setStartAble(true);
                 sendChart(msgObj.name + ' joined the room');
             }
+            startPing();
             break;
         case MsgType.CHART:
             var cv:ClientVO = findClient(clientSocket);
@@ -564,6 +576,10 @@ public class LANServerCtrl {
             return;
         }
 
+        if (handlePingMessage(obj)) {
+            return;
+        }
+
         if (_selectLogic && _selectLogic.receiveSelect(obj)) {
             return;
         }
@@ -572,6 +588,58 @@ public class LANServerCtrl {
         if (json) {
             receiveJson(json, e.clientSocket);
         }
+    }
+
+    public function startPing():void {
+        LanPingHUD.I.show();
+        if (_pingTimer) {
+            return;
+        }
+        _pingTimer = new Timer(1000);
+        _pingTimer.addEventListener(TimerEvent.TIMER, onPingTimer);
+        _pingTimer.start();
+        sendPingNow();
+    }
+
+    public function stopPing():void {
+        if (_pingTimer) {
+            _pingTimer.stop();
+            _pingTimer.removeEventListener(TimerEvent.TIMER, onPingTimer);
+            _pingTimer = null;
+        }
+        LanPingHUD.I.hide();
+    }
+
+    private function onPingTimer(e:TimerEvent):void {
+        sendPingNow();
+    }
+
+    private function sendPingNow():void {
+        if (_clients.length < 1 && !LANGameCtrl.I.isOnline) {
+            return;
+        }
+        sendTCP(['SYNC', LanSyncType.PING, getTimer()]);
+    }
+
+    /**
+     * @return true if message was a ping/pong
+     */
+    private function handlePingMessage(obj:Object):Boolean {
+        var arr:Array = obj as Array;
+        if (!arr || arr[0] != 'SYNC') {
+            return false;
+        }
+        var type:int = int(arr[1]);
+        if (type == LanSyncType.PING) {
+            sendTCP(['SYNC', LanSyncType.PONG, arr[2]]);
+            return true;
+        }
+        if (type == LanSyncType.PONG) {
+            var rtt:int = getTimer() - int(arr[2]);
+            LanPingHUD.I.update(rtt);
+            return true;
+        }
+        return false;
     }
 
     private function onGameStart(e:GameEvent):void {
