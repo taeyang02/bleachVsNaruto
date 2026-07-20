@@ -101,10 +101,9 @@ public class SelectFighterStage implements IStage {
     private var _twoPlayerSelectFin:Boolean;  //解决两玩家同时选人
     /** Draft turn: 1 = P1 picks next, 2 = P2 picks next */
     private var _draftTurn:int = 1;
-    /** Per-side draft pick time bank (seconds); only ticks on that side's turn */
+    /** Seconds left for the current draft turn (resets to 30 each turn) */
     private static const DRAFT_TURN_SECONDS:int = 30;
-    private var _p1DraftTime:int               = DRAFT_TURN_SECONDS;
-    private var _p2DraftTime:int               = DRAFT_TURN_SECONDS;
+    private var _draftTurnTime:int             = DRAFT_TURN_SECONDS;
     private var _draftTimerAcc:Number          = 0;
     private var _draftTimerTF:TextField;
     private var _draftAutoPicking:Boolean      = false;
@@ -259,15 +258,18 @@ public class SelectFighterStage implements IStage {
         selt.applyNetworkPicks(selects);
         SoundCtrl.I.sndConfrim();
         if (advanceTurn) {
-            _draftTurn = player == 1 ? 2 : 1;
+            var next:int = player == 1 ? 2 : 1;
             if (selt.selectFinish()) {
                 var other:SelecterItemUI = player == 1 ? _p2Slt : _p1Slt;
                 if (other && !other.selectFinish()) {
-                    _draftTurn = player == 1 ? 2 : 1;
+                    next = player == 1 ? 2 : 1;
                 }
             }
+            setDraftTurn(next);
         }
-        applyDraftTurnInput();
+        else {
+            applyDraftTurnInput();
+        }
     }
 
     public function nextStep():void {
@@ -729,12 +731,10 @@ public class SelectFighterStage implements IStage {
             initSelecterP1();
             initSelecterP2();
             _twoPlayerSelectFin = false;
-            _draftTurn          = 1;
 
             if (DRAFT_MODE) {
                 // MOBA-style: both bars visible; only current turn + local side can pick
-                resetDraftTimers();
-                applyDraftTurnInput();
+                setDraftTurn(1);
                 showDraftTimer();
             }
             else if (ONLY_INPUT_PLAYER == 1 && _p2Slt) {
@@ -745,10 +745,24 @@ public class SelectFighterStage implements IStage {
                 _p1Slt.enabled = false;
                 _p1Slt.removeSelecter();
             }
+            else {
+                _draftTurn = 1;
+            }
         }
         else {
             initSelecterP1();
         }
+    }
+
+    /**
+     * Switch draft turn and give that side a fresh 30s.
+     */
+    private function setDraftTurn(player:int):void {
+        _draftTurn        = player;
+        _draftTurnTime    = DRAFT_TURN_SECONDS;
+        _draftTimerAcc    = 0;
+        _draftAutoPicking = false;
+        applyDraftTurnInput();
     }
 
     private function applyDraftTurnInput():void {
@@ -766,13 +780,6 @@ public class SelectFighterStage implements IStage {
         }
         _draftAutoPicking = false;
         updateDraftTimerUI();
-    }
-
-    private function resetDraftTimers():void {
-        _p1DraftTime      = DRAFT_TURN_SECONDS;
-        _p2DraftTime      = DRAFT_TURN_SECONDS;
-        _draftTimerAcc    = 0;
-        _draftAutoPicking = false;
     }
 
     private function showDraftTimer():void {
@@ -809,15 +816,11 @@ public class SelectFighterStage implements IStage {
             return;
         }
         var turnLabel:String = _draftTurn == 1 ? 'P1' : 'P2';
-        var warn:Boolean     = (
-                                       _draftTurn == 1 && _p1DraftTime <= 5
-                               ) || (
-                                       _draftTurn == 2 && _p2DraftTime <= 5
-                               );
+        var warn:Boolean     = _draftTurnTime <= 5;
         _draftTimerTF.defaultTextFormat = new TextFormat(
                 'Arial', 18, warn ? 0xFF4444 : 0xFFFFFF, true
         );
-        _draftTimerTF.text = 'P1 ' + _p1DraftTime + 's  |  P2 ' + _p2DraftTime + 's  [' + turnLabel + ']';
+        _draftTimerTF.text = turnLabel + '  ' + _draftTurnTime + 's';
         _draftTimerTF.x    = GameConfig.GAME_SIZE.x / 2 - _draftTimerTF.width / 2;
     }
 
@@ -846,21 +849,17 @@ public class SelectFighterStage implements IStage {
         }
         _draftTimerAcc = 0;
 
-        if (_draftTurn == 1 && _p1Slt && !_p1Slt.selectFinish()) {
-            if (_p1DraftTime > 0) {
-                _p1DraftTime--;
-            }
-            if (_p1DraftTime <= 0) {
-                tryAutoDraftPick(1);
-            }
+        var active:SelecterItemUI = _draftTurn == 1 ? _p1Slt : _p2Slt;
+        if (!active || active.selectFinish()) {
+            updateDraftTimerUI();
+            return;
         }
-        else if (_draftTurn == 2 && _p2Slt && !_p2Slt.selectFinish()) {
-            if (_p2DraftTime > 0) {
-                _p2DraftTime--;
-            }
-            if (_p2DraftTime <= 0) {
-                tryAutoDraftPick(2);
-            }
+
+        if (_draftTurnTime > 0) {
+            _draftTurnTime--;
+        }
+        if (_draftTurnTime <= 0) {
+            tryAutoDraftPick(_draftTurn);
         }
         updateDraftTimerUI();
     }
@@ -1494,14 +1493,12 @@ public class SelectFighterStage implements IStage {
                     nextStep();
                 }
                 else {
-                    _draftTurn = player == 1 ? 2 : 1;
-                    applyDraftTurnInput();
+                    setDraftTurn(player == 1 ? 2 : 1);
                 }
                 return;
             }
 
-            _draftTurn = player == 1 ? 2 : 1;
-            applyDraftTurnInput();
+            setDraftTurn(player == 1 ? 2 : 1);
             return;
         }
 
