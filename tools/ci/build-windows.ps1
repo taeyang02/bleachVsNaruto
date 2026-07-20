@@ -52,6 +52,12 @@ Require-Path 'keysign\5dplay.p12' 'Missing signing certificate'
 # external-library-path may be empty; ensure directory exists for asconfigc
 New-Item -ItemType Directory -Force -Path (Join-Path $Root 'shared\lib\swc') | Out-Null
 
+Write-Host '== Prepare Flash UI/sound libs =='
+& (Join-Path $PSScriptRoot 'prepare-flash-libs.ps1')
+if ($LASTEXITCODE -ne 0) {
+    throw "prepare-flash-libs failed ($LASTEXITCODE)"
+}
+
 Write-Host '== Sync assets -> shared/_tmp/pc =='
 $srcAssets = Join-Path $Root 'shared\assets\assets'
 $dstPc = Join-Path $Root 'shared\_tmp\pc\assets'

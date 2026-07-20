@@ -39,6 +39,80 @@ public class ResUtils {
     public static var swfLib:ISwfLib;
     private static var _i:ResUtils;
 
+    /**
+     * Legacy TagAssets (pre-$prefix$ naming) → current code symbol names.
+     * Used when public TagAssets SWFs still export the old linkage IDs.
+     */
+    private static const LEGACY_SYMBOL_MAP:Object = {
+        '$big_map$MC_bigMap':            'big_map_mc',
+        '$big_map$MC_cloud':             'cloud_mc',
+        '$common$MC_congratulations':    'mc_congratulations',
+        '$common$MC_logo':               'logo_movie',
+        '$common$MC_menuBtn':            'mc_wzbtn',
+        '$common$MC_sltArrow':           'select_arrow_mc',
+        '$common$MC_transition':         'trans_mc',
+        '$common$MC_winText':            'mc_win_all',
+        '$dialog$BTN_back':              'backbtn_btn',
+        '$dialog$MC_coinIco':            'coin_icon_mc',
+        '$dialog$MC_confirm':            'dialog_confrim',
+        '$dialog$MC_dot':                'dot_mc',
+        '$dialog$MC_musouTeamPanel':     'dialog_mosou_status',
+        '$dialog$MC_selectFighterPanel': 'dialog_select_fighter',
+        '$dialog$SP_faceUI':             'face_ui_mc',
+        '$fight$MC_energyBar':           'energy_bar',
+        '$fight$MC_fightUI':             'ui_fight',
+        '$fight$MC_hitsNumer':           'hits_num_mc',
+        '$fight$MC_hpBar':               'hpbar_mc',
+        '$fight$MC_hpBarFace':           'hpbar_facemc',
+        '$fight$MC_hpBarFaceGroup':      'hpbar_facegroup',
+        '$fight$MC_hpBarMc':             'hpbar_barmc',
+        '$fight$MC_qiBar':               'qbar_mc',
+        '$fight$MC_qiBarFzQi':           'qbar_fzqi_mc',
+        '$fight$MC_qiBarMc':             'qbar_barmc',
+        '$fight$MC_score':               'score_mc',
+        '$fight$MC_scoreNumber':         'txtmc_score',
+        '$fight$MC_time':                'time_mc',
+        '$fight$MC_timeNumber':          'time_txtmc',
+        '$fight$MC_win':                 'winmc',
+        '$fight$SP_playerPos1':          'player_pos_p1',
+        '$fight$SP_playerPos2':          'player_pos_p2',
+        '$game_over$MC_stgGameOver':     'stg_gameover_mc',
+        '$how2play$MC_movieHow2Play':    'movie_howtoplay',
+        '$language$MC_base':             'language_mc_base',
+        '$language$MC_country':          'language_mc_country',
+        '$language$MC_loadingBar':       'language_mc_loadingbar',
+        '$language$MC_text':             'language_mc_country_text',
+        '$loading$BM_coverBackGround':   'cover_bgimg',
+        '$loading$MC_loadingCover':      'loading_cover_mc',
+        '$loading$MC_loadingFight':      'loading_fight_mc',
+        '$loading$MC_selectText':        'seltwzmc',
+        '$loading$MC_selectUI':          'loading_select_ui_mc',
+        '$loading$MC_stageWinner':       'winner_stg_mc',
+        '$loading$MC_stageWinner2':      'winner_stg_mc2',
+        '$loading$SP_selectArrow1':      'select_arrow_mc_1',
+        '$loading$SP_selectArrow2':      'select_arrow_mc_2',
+        '$musou$MC_enemyHpBar':          'mosou_enemyhpbarmc',
+        '$musou$MC_enemyHpBarFollow':    'mosou_enemyhpbarmc2',
+        '$musou$MC_energyBar':           'mosou_energy_bar',
+        '$musou$MC_hpBarFace':           'mosou_hpbar_facemc',
+        '$musou$MC_hpBarGroup':          'mosou_hpbar_facegroup',
+        '$musou$MC_miniHpBar':           'mosou_little_hpbar_mc',
+        '$musou$MC_ui':                  'ui_mosou',
+        '$select$MC_selectItemMc':       'slt_item_mc',
+        '$select$MC_stgSelect':          'stg_select',
+        '$select$SP_ct':                 'ctmc',
+        '$select$SP_selectBarItemP1':    'selected_item_p1_mc',
+        '$select$SP_selectBarItemP2':    'selected_item_p2_mc',
+        '$select$SP_selectItem':         'select_item_mc',
+        '$select$SP_selectMap':          'select_map_mc',
+        '$select$SP_selectMapText':      'select_map_txt_mc',
+        '$setting$MC_stgSetUI':          'stg_set_ui',
+        '$setting$SP_keySet':            'keyset_mc',
+        '$setting$SP_keySetDialog':      'key_set_dialog_mc',
+        '$setting$SP_textArrow':         'txt_arrow_mc',
+        '$title$MC_stgTitle':            'stg_title'
+    };
+
     public static function get I():ResUtils {
         _i ||= new ResUtils();
         return _i;
@@ -145,7 +219,35 @@ public class ResUtils {
         if (!swf) {
             throw new Error('swf is undefined!');
         }
-        return swf.getClass(itemName);
+
+        var cls:Class = resolveClass(swf, itemName);
+        if (cls) {
+            return cls;
+        }
+
+        // Newer code embeds may split symbols across SWFs; search all loaded pools.
+        for each (var other:InsSwf in _swfPool) {
+            if (other == swf) {
+                continue;
+            }
+            cls = resolveClass(other, itemName);
+            if (cls) {
+                return cls;
+            }
+        }
+        return null;
+    }
+
+    private function resolveClass(swf:InsSwf, itemName:String):Class {
+        var cls:Class = swf.getClass(itemName);
+        if (cls) {
+            return cls;
+        }
+        var legacy:String = LEGACY_SYMBOL_MAP[itemName];
+        if (legacy) {
+            return swf.getClass(legacy);
+        }
+        return null;
     }
 
     public function getItemProperty(embedSwf:Class, name:String):* {
@@ -239,7 +341,17 @@ internal class InsSwf {
     private var _content:DisplayObject;
 
     public function getClass(name:String):Class {
-        return _domain.getDefinition(name) as Class;
+        if (!_domain || !name) {
+            return null;
+        }
+        try {
+            if (_domain.hasDefinition(name)) {
+                return _domain.getDefinition(name) as Class;
+            }
+        }
+        catch (e:Error) {
+        }
+        return null;
     }
 
     public function getProperty(name:String):* {

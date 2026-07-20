@@ -1,2 +1,4 @@
 # IDEA 输出目录
 /out/
+# CI generated flash stubs
+tools/ci/_generated/

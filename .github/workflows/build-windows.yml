@@ -42,6 +42,9 @@ jobs:
       TAG_ASSETS_REPO: 5DPLAY-Game-Studio/BleachVsNaruto_TagAssets
       PACKAGE_TARGET: ${{ github.event.inputs.package_target || 'bundle' }}
       TAG_ASSETS: ${{ github.event.inputs.tag_assets || '3.7.0.0.12212024_alpha' }}
+      # Older TagAssets still ship UI SWFs (common_ui.swf, …) needed for Embed + legacy linkage
+      UI_TAG_ASSETS: '3.7.0.0.11112024_alpha'
+      KERNEL_SWC_TAG: '3.7.0.0.11112024_alpha'
       KEYSTORE_PASS: ${{ secrets.AIR_KEYSTORE_PASSWORD || '123456' }}
 
     steps:
