@@ -150,6 +150,29 @@ foreach ($destName in $swfMap.Keys) {
     Write-Host "Prepared $destName (<= $srcName)"
 }
 
+Write-Host '== Font SWFs (newer TagAssets dropped these; language.json still needs them) =='
+$fontDir = Join-Path $Root 'shared\assets\assets\font'
+New-Item -ItemType Directory -Force -Path $fontDir | Out-Null
+$fontBase = "https://raw.githubusercontent.com/5DPLAY-Game-Studio/BleachVsNaruto_TagAssets/$UiAssetsTag/shared/assets/assets/font"
+$fontFiles = @(
+    'microsoft_yahei.swf',
+    'microsoft_jhenghei.swf',
+    'meiryo.swf',
+    'malgun_gothic.swf',
+    'calibri.swf'
+)
+foreach ($fontName in $fontFiles) {
+    $dest = Join-Path $fontDir $fontName
+    if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 1024)) {
+        Write-Host "Keep existing font/$fontName"
+        continue
+    }
+    $tmp = Join-Path $env:TEMP "bvn-font-$fontName"
+    Download-File "$fontBase/$fontName" $tmp
+    Copy-Item $tmp $dest -Force
+    Write-Host "Prepared font/$fontName"
+}
+
 Write-Host '== Patch KernelLogic $UI$Type annotations -> MovieClip (CI only) =='
 $asFiles = Get-ChildItem -Path (Join-Path $Root 'CORE_KernelLogic\src') -Filter '*.as' -Recurse
 $patched = 0
