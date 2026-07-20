@@ -68,7 +68,7 @@ public class OnlineJoinDialog implements IStage {
         var titleFmt:TextFormat = new TextFormat(null, 20, 0xffffff, true);
         var title:TextField     = new TextField();
         title.defaultTextFormat = titleFmt;
-        title.text              = 'ONLINE JOIN / 输入房间码';
+        title.text              = 'JOIN ONLINE ROOM';
         title.width             = 400;
         title.height            = 30;
         title.x                 = 20;
@@ -79,7 +79,7 @@ public class OnlineJoinDialog implements IStage {
         var tipFmt:TextFormat = new TextFormat(null, 14, 0xcccccc);
         var tip:TextField     = new TextField();
         tip.defaultTextFormat = tipFmt;
-        tip.text              = 'Room Code (6 chars)';
+        tip.text              = 'Enter room code (4-8 characters)';
         tip.width             = 380;
         tip.height            = 24;
         tip.x                 = 20;
@@ -103,7 +103,7 @@ public class OnlineJoinDialog implements IStage {
         _input.restrict         = 'A-Za-z0-9';
         box.addChild(_input);
 
-        var okBtn:Sprite = makeBtn('OK / 加入', 0x226622, onOk);
+        var okBtn:Sprite = makeBtn('JOIN', 0x226622, onOk);
         okBtn.x = 70;
         okBtn.y = 145;
         box.addChild(okBtn);
@@ -155,14 +155,14 @@ public class OnlineJoinDialog implements IStage {
         SoundCtrl.I.sndConfrim();
         var code:String = _input.text ? _input.text.replace(/\s+/g, '').toUpperCase() : '';
         if (code.length < 4) {
-            GameUI.alert('ERROR', '请输入房间码');
+            GameUI.alert('ERROR', 'Please enter a room code');
             return;
         }
 
-        GameUI.alert('CONNECTING', '正在加入房间...');
+        GameUI.alert('CONNECTING', 'Joining room...');
         LANClientCtrl.I.joinOnline(code, function (succ:Boolean, msg:String):void {
             if (!succ) {
-                GameUI.alert('ERROR', msg || '加入失败');
+                GameUI.alert('ERROR', msg || 'Failed to join room');
                 return;
             }
             if (onJoined != null) {

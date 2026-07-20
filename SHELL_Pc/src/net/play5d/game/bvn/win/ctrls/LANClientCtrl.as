@@ -200,14 +200,14 @@ public class LANClientCtrl {
                 relay.sendGameTcpJson(SocketMsgFactory.createJoinMsg());
             }, function (msg:String):void {
                 if (_joinBack != null) {
-                    _joinBack(false, msg || '加入失败');
+                    _joinBack(false, msg || 'Failed to join');
                     _joinBack = null;
                 }
                 dispose();
             });
         }, function (err:String):void {
             if (_joinBack != null) {
-                _joinBack(false, '无法连接联机服务器');
+                _joinBack(false, 'Cannot connect to online server');
                 _joinBack = null;
             }
         });
@@ -359,14 +359,14 @@ public class LANClientCtrl {
         if (!wait) {
 //				trace("同步异常");
             gameEnd();
-            GameUI.alert("DISCONNECT", "发生异常");
+            GameUI.alert("DISCONNECT", "Sync error");
             return;
         }
         _syncErrorTimes++;
         if (_syncErrorTimes > 10) {
 //				trace("同步错误，强制退出");
             gameEnd();
-            GameUI.alert("DISCONNECT", "发生异常");
+            GameUI.alert("DISCONNECT", "Sync error");
 //				dispose();
         }
     }
@@ -374,11 +374,11 @@ public class LANClientCtrl {
     private function onOnlinePeerLeft(reason:String):void {
         if (active) {
             gameEnd();
-            GameUI.alert('DISCONNECT', '与主机断开连接');
+            GameUI.alert('DISCONNECT', 'Disconnected from host');
         }
         else {
             if (_room) {
-                _room.exitRoom('连接中断');
+                _room.exitRoom('Connection lost');
             }
             dispose();
         }
@@ -615,11 +615,11 @@ public class LANClientCtrl {
         case SocketEvent.CLOSE:
             if (active) {
                 gameEnd();
-                GameUI.alert('DISCONNECT', '与主机断开连接');
+                GameUI.alert('DISCONNECT', 'Disconnected from host');
             }
             else {
                 if (_room) {
-                    _room.exitRoom('连接中断');
+                    _room.exitRoom('Connection lost');
                 }
                 dispose();
             }

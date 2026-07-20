@@ -56,18 +56,18 @@ public class LANGameState implements IStage {
         if (LANGameCtrl.I.isOnline) {
             OnlineConfig.load();
             btns = [
-                {label: 'JOIN GAME', cn: '加入房间'},
-                {label: 'BUILD GAME', cn: '创建房间'},
-                {label: 'PROFILE', cn: '个人信息'},
-                {label: 'EXIT', cn: '退出'}
+                {label: 'JOIN ROOM', cn: 'JOIN ROOM'},
+                {label: 'CREATE ROOM', cn: 'CREATE ROOM'},
+                {label: 'PROFILE', cn: 'PROFILE'},
+                {label: 'EXIT', cn: 'EXIT'}
             ];
         }
         else {
             btns = [
-                {label: 'JOIN GAME', cn: '加入游戏'},
-                {label: 'BUILD GAME', cn: '创建游戏'},
-                {label: 'PROFILE', cn: '个人信息'},
-                {label: 'EXIT', cn: '退出'}
+                {label: 'JOIN GAME', cn: 'JOIN GAME'},
+                {label: 'BUILD GAME', cn: 'BUILD GAME'},
+                {label: 'PROFILE', cn: 'PROFILE'},
+                {label: 'EXIT', cn: 'EXIT'}
             ];
         }
 
@@ -127,6 +127,7 @@ public class LANGameState implements IStage {
     private function btnHandler(e:SetBtnEvent):void {
         switch (e.selectedLabel) {
         case 'JOIN GAME':
+        case 'JOIN ROOM':
             if (LANGameCtrl.I.isOnline) {
                 _btnGroup.keyEnable           = false;
                 var joinDlg:OnlineJoinDialog  = new OnlineJoinDialog();
@@ -139,6 +140,7 @@ public class LANGameState implements IStage {
             }
             break;
         case 'BUILD GAME':
+        case 'CREATE ROOM':
             _btnGroup.keyEnable            = false;
             var dialog:LANHostCreateDialog = new LANHostCreateDialog();
             dialog.onCreate                = onCreateHost;

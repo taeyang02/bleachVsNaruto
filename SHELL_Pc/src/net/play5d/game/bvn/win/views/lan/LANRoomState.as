@@ -215,11 +215,11 @@ public class LANRoomState implements IStage {
         _ui.txt_start.visible = _isOwner;
         _txtChart             = _ui.txt_chart;
         if (LANGameCtrl.I.isOnline && _host.roomCode) {
-            _ui.txt_pass.text = '房间码：' + _host.roomCode;
-            pushChart('房间码: ' + _host.roomCode + ' （发给好友加入）');
+            _ui.txt_pass.text = 'Code: ' + _host.roomCode;
+            pushChart('Room code: ' + _host.roomCode + ' (share with friend to join)');
         }
         else {
-            _ui.txt_pass.text = _host.password ? '密码：' + _host.password : '';
+            _ui.txt_pass.text = _host.password ? 'Password: ' + _host.password : '';
         }
         addOwner();
     }
@@ -281,7 +281,7 @@ public class LANRoomState implements IStage {
 
             pushChart((
                       _startTimer.repeatCount - _startTimer.currentCount + 1
-                      ) + '秒后开始游戏', null);
+                      ) + 's until game starts', null);
         }
 
         if (e.type == TimerEvent.TIMER_COMPLETE) {

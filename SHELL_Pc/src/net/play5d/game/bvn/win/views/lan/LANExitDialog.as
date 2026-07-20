@@ -38,8 +38,8 @@ public class LANExitDialog extends Sprite {
 
         _btnGroup = new SetBtnGroup();
         _btnGroup.setBtnData([
-                                 {label: 'CONTINUE', cn: '继续游戏'},
-                                 {label: 'EXIT', cn: '退出联机'}
+                                 {label: 'CONTINUE', cn: 'CONTINUE'},
+                                 {label: 'EXIT', cn: 'EXIT ONLINE'}
                              ], 0);
         _btnGroup.addEventListener(SetBtnEvent.SELECT, btnGroupSelectHandler);
 

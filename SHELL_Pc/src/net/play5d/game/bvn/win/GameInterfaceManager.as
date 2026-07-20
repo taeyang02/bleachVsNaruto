@@ -149,7 +149,7 @@ public class GameInterfaceManager implements IGameInterface {
             },
 
             {
-                txt: 'ONLINE PLAY', cn: '联机对战', func: function ():void {
+                txt: 'ONLINE PLAY', cn: 'ONLINE PLAY', func: function ():void {
                     LANGameCtrl.I.goOnlineGameState();
                 }
             },

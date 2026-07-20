@@ -134,7 +134,7 @@ public class LANServerCtrl {
                     onOnlineRoomFailed(msg);
                 }
                 else {
-                    GameUI.alert('ERROR', msg || '创建房间失败');
+                    GameUI.alert('ERROR', msg || 'Failed to create room');
                 }
             });
         }, function (err:String):void {
@@ -142,7 +142,7 @@ public class LANServerCtrl {
                 onOnlineRoomFailed(err);
             }
             else {
-                GameUI.alert('ERROR', '无法连接联机服务器: ' + (err || ''));
+                GameUI.alert('ERROR', 'Cannot connect to online server: ' + (err || ''));
             }
         });
     }
@@ -209,7 +209,7 @@ public class LANServerCtrl {
             if (_clients[i].id == id) {
                 client = _clients[i];
 
-                sendJsonToClient(client, SocketMsgFactory.createKickOutMsg('你已被踢出房间'));
+                sendJsonToClient(client, SocketMsgFactory.createKickOutMsg('You were kicked from the room'));
 
                 if (_kickTimeoutInt == 0) {
                     _kickTimeoutInt = setTimeout(kickTimeout, 3000);
@@ -346,14 +346,14 @@ public class LANServerCtrl {
         _onlineClosing = true;
         if (active) {
             gameEnd();
-            GameUI.alert('PLAYER EXIT', '玩家退出房间');
+            GameUI.alert('PLAYER EXIT', 'Player left the room');
             return;
         }
         if (_clients.length > 0) {
             var cv:ClientVO = _clients[0];
             if (_room) {
                 _room.removePlayer(cv.ip);
-                _room.pushChart((cv.name || '玩家') + '退出房间');
+                _room.pushChart((cv.name || 'Player') + ' left the room');
                 _room.setStartAble(false);
             }
             _clients.length = 0;
@@ -383,7 +383,7 @@ public class LANServerCtrl {
         case MsgType.JOIN_IN:
             if (_room) {
                 _room.setStartAble(true);
-                sendChart(msgObj.name + '进入房间');
+                sendChart(msgObj.name + ' joined the room');
             }
             break;
         case MsgType.CHART:
@@ -406,10 +406,10 @@ public class LANServerCtrl {
         if (_clients.length > 0) {
             //超出人数限制
             if (LANGameCtrl.I.isOnline) {
-                OnlineRelayClient.I.sendGameTcpJson(SocketMsgFactory.createJoinFailMsg('人数已满'));
+                OnlineRelayClient.I.sendGameTcpJson(SocketMsgFactory.createJoinFailMsg('Room is full'));
             }
             else {
-                SocketServer.I.sendJson(clientSocket, SocketMsgFactory.createJoinFailMsg('人数已满'));
+                SocketServer.I.sendJson(clientSocket, SocketMsgFactory.createJoinFailMsg('Room is full'));
             }
             return;
         }
@@ -429,7 +429,7 @@ public class LANServerCtrl {
         _clients.push(cv);
         if (_room) {
             _room.addPlayer(cv.ip, cv.name);
-            sendChart(cv.name + '正在进入房间...');
+            sendChart(cv.name + ' is joining...');
             _room.setStartAble(false);
         }
 
@@ -487,13 +487,13 @@ public class LANServerCtrl {
 
             if (active) {
                 gameEnd();
-                GameUI.alert('PLAYER EXIT', '玩家退出房间');
+                GameUI.alert('PLAYER EXIT', 'Player left the room');
             }
             for (var i:int; i < _clients.length; i++) {
                 if (_clients[i].socket == e.clientSocket) {
                     if (_room) {
                         _room.removePlayer(_clients[i].ip);
-                        _room.pushChart(_clients[i].name + '退出房间');
+                        _room.pushChart(_clients[i].name + ' left the room');
                         _room.setStartAble(false);
                     }
                     _clients.splice(i, 1);

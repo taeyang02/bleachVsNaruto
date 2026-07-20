@@ -78,7 +78,7 @@ public class ProfileDialog implements IStage {
     private function okHandler():void {
         var newName:String = _ui.txt.text;
         if (newName == '') {
-            GameUI.alert('请输入名字');
+            GameUI.alert('Please enter a name');
             return;
         }
 

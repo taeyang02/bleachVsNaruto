@@ -68,8 +68,8 @@ public class LANHostCreateDialog implements IStage {
 
         _ui.txt_pass.visible = false;
 
-        _ui.comb_mode.addItem({label: 'TEAM VS - 小队模式', data: 1});
-//			_ui.comb_mode.addItem( { label: "SINGLE VS - 单人模式", data:2 } );
+        _ui.comb_mode.addItem({label: 'TEAM VS', data: 1});
+//			_ui.comb_mode.addItem( { label: "SINGLE VS", data:2 } );
     }
 
     /**
@@ -106,7 +106,7 @@ public class LANHostCreateDialog implements IStage {
         var mode:int    = _ui.comb_mode.selectedItem.data;
 
         if (name == '') {
-            GameUI.alert('ERROR', '请输入主机名称');
+            GameUI.alert('ERROR', 'Please enter a room name');
             return;
         }
 
@@ -149,7 +149,7 @@ public class LANHostCreateDialog implements IStage {
         }
         close();
 
-        GameUI.alert('ROOM CODE', '房间码: ' + roomCode + '\n请把房间码发给好友加入');
+        GameUI.alert('ROOM CODE', 'Room code: ' + roomCode + '\nShare this code with your friend to join');
     }
 
     private function onOnlineFailed(msg:String):void {
@@ -157,7 +157,7 @@ public class LANHostCreateDialog implements IStage {
         LANServerCtrl.I.onOnlineRoomCreated = null;
         LANServerCtrl.I.onOnlineRoomFailed  = null;
         LANServerCtrl.I.stopServer();
-        GameUI.alert('ERROR', msg || '创建房间失败');
+        GameUI.alert('ERROR', msg || 'Failed to create room');
     }
 
     private function checkHandler(e:Event):void {
