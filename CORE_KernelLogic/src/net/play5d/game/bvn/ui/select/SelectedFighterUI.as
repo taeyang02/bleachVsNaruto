@@ -18,6 +18,7 @@
 
 package net.play5d.game.bvn.ui.select {
 import flash.display.DisplayObject;
+import flash.display.MovieClip;
 import flash.display.Sprite;
 import flash.events.Event;
 import flash.events.EventDispatcher;
@@ -31,6 +32,7 @@ import net.play5d.game.bvn.ctrler.AssetManager;
 import net.play5d.game.bvn.data.vos.FighterVO;
 import net.play5d.game.bvn.ui.GameUI;
 import net.play5d.game.bvn.ui.UIUtils;
+import net.play5d.game.bvn.utils.MCUtils;
 import net.play5d.game.bvn.utils.ResUtils;
 import net.play5d.kyo.display.BitmapText;
 
@@ -45,6 +47,12 @@ public class SelectedFighterUI extends EventDispatcher {
         this.ui = ui;
 
         ui.mouseChildren = false;
+
+        if (ui is MovieClip) {
+            var mc:MovieClip = ui as MovieClip;
+            mc.stop();
+            MCUtils.stopAllMovieClips(mc);
+        }
 
         if (GameUI.SHOW_CN_TEXT) {
             _text = new BitmapText(true, 0xffffff, [new GlowFilter(0, 1, 3, 3, 3)]);

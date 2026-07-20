@@ -22,6 +22,7 @@ import com.greensock.easing.Back;
 
 import flash.display.DisplayObject;
 import flash.display.DisplayObjectContainer;
+import flash.display.MovieClip;
 import flash.events.Event;
 import flash.events.EventDispatcher;
 import flash.filters.GlowFilter;
@@ -32,6 +33,7 @@ import flash.text.TextFormatAlign;
 import net.play5d.game.bvn.ctrler.AssetManager;
 import net.play5d.game.bvn.data.vos.FighterVO;
 import net.play5d.game.bvn.data.vos.SelectCharListItemVO;
+import net.play5d.game.bvn.utils.MCUtils;
 import net.play5d.game.bvn.utils.ResUtils;
 import net.play5d.kyo.display.BitmapText;
 
@@ -61,6 +63,13 @@ public class SelectFighterItem extends EventDispatcher {
 
         ui.mouseChildren = false;
         ui.buttonMode    = true;
+
+        // Stop legacy cell blink/pulse timelines
+        if (ui is MovieClip) {
+            var mc:MovieClip = ui as MovieClip;
+            mc.stop();
+            MCUtils.stopAllMovieClips(mc);
+        }
 
         if (selectData && selectData.moreFighterIDs) {
             initMoreUI();

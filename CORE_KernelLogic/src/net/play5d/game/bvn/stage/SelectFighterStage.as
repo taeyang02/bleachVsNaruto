@@ -1109,11 +1109,12 @@ public class SelectFighterStage implements IStage {
 
     private function renderRandom(selt:SelecterItemUI):void {
         if (selt.randoms) {
-            if (selt.randFrame > 0) {
-                selt.randFrame = 0;
+            // Slow random preview cycling — every-other-frame was too flashy
+            if (selt.randFrame < 10) {
+                selt.randFrame++;
                 return;
             }
-            selt.randFrame++;
+            selt.randFrame = 0;
             selt.currentFighter = KyoRandom.getRandomInArray(selt.randoms, false);
             if (selt.group) {
                 selt.group.updateFighter(selt.currentFighter);

@@ -17,13 +17,14 @@
  */
 
 package net.play5d.game.bvn.ui.select {
+import flash.display.MovieClip;
+
 import net.play5d.game.bvn.data.AssisterModel;
 import net.play5d.game.bvn.data.FighterModel;
 import net.play5d.game.bvn.data.vos.FighterVO;
 import net.play5d.game.bvn.data.vos.SelectVO;
 import net.play5d.game.bvn.utils.MCUtils;
 import net.play5d.game.bvn.utils.ResUtils;
-import net.play5d.kyo.utils.KyoUtils;
 
 public class SelecterItemUI {
     include '../../../../../../../include/_INCLUDE_.as';
@@ -40,6 +41,8 @@ public class SelecterItemUI {
         else if (ui.totalFrames >= frame) {
             ui.gotoAndStop(frame);
         }
+        // Freeze cursor SWF — legacy assets loop a painful blink/pulse
+        freezeCursor();
     }
     public var ui:$select$MC_selectItemMc;
     public var currentFighter:FighterVO;
@@ -180,21 +183,25 @@ public class SelecterItemUI {
 
         enabled = false;
 
-        var _this:* = this;
-
-        // Legacy select cursor SWF may not have a 'select' frame label (#2109)
-        if (MCUtils.hasFrameLabel(ui, 'select')) {
-            ui.gotoAndPlay('select');
-            KyoUtils.addFrameScript(ui, function ():void {
-                finishSelectAnim(_this, back);
-            });
-        }
-        else {
-            finishSelectAnim(_this, back);
-        }
+        // No confirm flash/blink — finish immediately (legacy SWF select anim is harsh)
+        freezeCursor();
+        finishSelectAnim(this, back);
 
         updateRandom();
 
+    }
+
+    private function freezeCursor():void {
+        if (!ui) {
+            return;
+        }
+        ui.stop();
+        MCUtils.stopAllMovieClips(ui);
+        if (ui.mc is MovieClip) {
+            var child:MovieClip = ui.mc as MovieClip;
+            child.stop();
+            MCUtils.stopAllMovieClips(child);
+        }
     }
 
     private function finishSelectAnim(_this:*, back:Function):void {
