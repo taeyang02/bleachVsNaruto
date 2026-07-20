@@ -165,7 +165,7 @@ try {
             -target air $outAir `
             launch-app.xml launch.swf `
             -C (Join-Path $Root 'shared\assets') assets `
-            -C (Join-Path $Root 'SHELL_Pc\lib\icon') icon
+            -C (Join-Path $Root 'SHELL_Pc\lib') icon
         if ($LASTEXITCODE -ne 0) { throw "adt air package failed ($LASTEXITCODE)" }
         Write-Host "OK: $outAir"
     }
@@ -178,7 +178,7 @@ try {
             -target bundle $bundleDir `
             launch-app.xml launch.swf `
             -C (Join-Path $Root 'shared\assets') assets `
-            -C (Join-Path $Root 'SHELL_Pc\lib\icon') icon
+            -C (Join-Path $Root 'SHELL_Pc\lib') icon
         if ($LASTEXITCODE -ne 0) { throw "adt bundle package failed ($LASTEXITCODE)" }
 
         # Keep online config next to the EXE for playable builds
