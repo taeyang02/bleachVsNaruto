@@ -48,6 +48,8 @@ public class GameEvent extends Event {
     public static const SELECT_FIGHTER:String        = 'SELECT_FIGHTER';
     public static const SELECT_MAP:String            = 'SELECT_MAP';
     public static const SELECT_FIGHTER_STEP:String   = 'SELECT_FIGHTER_STEP';
+    /** Online draft: one fighter confirmed (param: {player, selects}) */
+    public static const SELECT_FIGHTER_PICK:String   = 'SELECT_FIGHTER_PICK';
     public static const SELECT_FIGHTER_FINISH:String = 'SELECT_FIGHTER_FINISH';
     public static const SELECT_FIGHTER_INDEX:String  = 'SELECT_FIGHTER_INDEX';
 

@@ -107,6 +107,59 @@ public class SelecterItemUI {
 
     }
 
+    /**
+     * Apply draft picks from peer (partial or complete). Mirrors local select() visuals.
+     */
+    public function applyNetworkPicks(v:Array):void {
+        if (!v || !selectVO) {
+            return;
+        }
+        if (isSelectAssist) {
+            if (v[0] && selectTimes < 1) {
+                selectVO.fuzhu = v[0];
+                group.updateFighter(AssisterModel.I.getAssister(v[0]));
+                selectTimes = 1;
+            }
+            enabled = !selectFinish();
+            return;
+        }
+
+        var count:int = 0;
+        if (v[0]) {
+            count++;
+        }
+        if (v.length > 1 && v[1]) {
+            count++;
+        }
+        if (v.length > 2 && v[2]) {
+            count++;
+        }
+
+        while (selectTimes < count) {
+            var id:String     = v[selectTimes];
+            var fv:FighterVO  = FighterModel.I.getFighter(id);
+            switch (selectTimes) {
+            case 0:
+                selectVO.fighter1 = id;
+                break;
+            case 1:
+                selectVO.fighter2 = id;
+                break;
+            case 2:
+                selectVO.fighter3 = id;
+                break;
+            }
+            selectTimes++;
+            if (!selectFinish()) {
+                group.addFighter(fv);
+            }
+            else {
+                group.updateFighter(fv);
+            }
+        }
+        enabled = !selectFinish();
+    }
+
     public function moreEnabled():Boolean {
         return _moreEnable;
     }

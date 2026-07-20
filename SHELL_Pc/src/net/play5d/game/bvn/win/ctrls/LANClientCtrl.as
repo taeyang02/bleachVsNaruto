@@ -288,10 +288,11 @@ public class LANClientCtrl {
 //			_connGameLogic = new OptimisticClientLogic();
         _connGameLogic = new LockFrameClientLogic();
 
-        GameCtrl.I.autoEndRoundAble    = false;
-        GameCtrl.I.autoStartAble       = false;
-        SelectFighterStage.AUTO_FINISH = false;
-        LoadingStage.AUTO_START_GAME   = false;
+        GameCtrl.I.autoEndRoundAble       = false;
+        GameCtrl.I.autoStartAble          = false;
+        GameCtrl.I.backToSelectOnFightEnd = false;
+        SelectFighterStage.AUTO_FINISH    = false;
+        LoadingStage.AUTO_START_GAME      = false;
 
         GameInterface.instance.updateInputConfig();
 
@@ -302,6 +303,55 @@ public class LANClientCtrl {
         LANUtils.updateParams();
 
         GameEvent.addEventListener(GameEvent.ROUND_START, onRoundStart);
+    }
+
+    /**
+     * Match over: keep connection, reopen room lobby and wait for host Start.
+     */
+    public function returnToRoom():void {
+        if (_selectLogic) {
+            _selectLogic.dispose();
+            _selectLogic = null;
+        }
+        if (_connGameLogic) {
+            _connGameLogic.dispose();
+            _connGameLogic = null;
+        }
+
+        if (_delayText) {
+            try {
+                _delayText.parent.removeChild(_delayText);
+            }
+            catch (e:Error) {
+                trace(e);
+            }
+            _delayText = null;
+        }
+
+        GameEvent.removeEventListener(GameEvent.ROUND_START, onRoundStart);
+
+        active                             = false;
+        GameCtrl.I.autoEndRoundAble        = true;
+        GameCtrl.I.autoStartAble           = true;
+        GameCtrl.I.backToSelectOnFightEnd  = true;
+        GameCtrl.I.fightFinished           = false;
+        SelectFighterStage.AUTO_FINISH     = true;
+        SelectFighterStage.DRAFT_MODE      = false;
+        SelectFighterStage.ONLY_INPUT_PLAYER = 0;
+        LoadingStage.AUTO_START_GAME       = true;
+
+        GameInterface.instance.updateInputConfig();
+        LockFrameLogic.I.dispose();
+        LanGameMenuCtrl.I.dispose();
+
+        GameInputer.enabled = true;
+        GameUI.closeAlert();
+        GameUI.closeConfrim();
+
+        var room:LANRoomState = new LANRoomState();
+        MainGame.stageCtrl.goStage(room);
+        room.clientMode(_host);
+        room.pushChart('Match finished — waiting for host to start');
     }
 
     public function gameEnd():void {
@@ -325,10 +375,12 @@ public class LANClientCtrl {
             _delayText = null;
         }
 
-        GameCtrl.I.autoEndRoundAble    = true;
-        GameCtrl.I.autoStartAble       = true;
-        SelectFighterStage.AUTO_FINISH = true;
-        LoadingStage.AUTO_START_GAME   = true;
+        GameCtrl.I.autoEndRoundAble       = true;
+        GameCtrl.I.autoStartAble          = true;
+        GameCtrl.I.backToSelectOnFightEnd = true;
+        SelectFighterStage.AUTO_FINISH    = true;
+        SelectFighterStage.DRAFT_MODE     = false;
+        LoadingStage.AUTO_START_GAME      = true;
 
         GameInterface.instance.updateInputConfig();
 
@@ -593,8 +645,10 @@ public class LANClientCtrl {
     }
 
     private function syncGameFinish():void {
-        _connGameLogic.enabled = false;
-        _connGameLogic.reset();
+        if (_connGameLogic) {
+            _connGameLogic.enabled = false;
+            _connGameLogic.reset();
+        }
 
         if (!GameCtrl.I.fightFinished) {
             try {
@@ -604,10 +658,11 @@ public class LANClientCtrl {
                 syncError(true);
                 clearTimeout(_syncGameFinishInt);
                 _syncGameFinishInt = setTimeout(syncGameFinish, 500);
+                return;
             }
-
         }
 
+        returnToRoom();
     }
 
     private function findHostTimerHandler(e:TimerEvent):void {

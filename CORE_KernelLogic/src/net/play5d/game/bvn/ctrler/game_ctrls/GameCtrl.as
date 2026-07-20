@@ -75,6 +75,8 @@ public class GameCtrl {
     public var actionEnable:Boolean = false; //是否可操作
     public var autoStartAble:Boolean    = true; //是否可以本机逻辑开始游戏
     public var autoEndRoundAble:Boolean = true; //是否可以本机逻辑结束游戏
+    /** Online/LAN: false → fight end returns to room (handler), not select */
+    public var backToSelectOnFightEnd:Boolean = true;
     public var fightFinished:Boolean;
     public var slowRate:Number = 0;
     /**
@@ -388,11 +390,13 @@ public class GameCtrl {
         }
 
         if (GameMode.isVsCPU() || GameMode.isVsPeople()) {
-            // 返回选人
+            // 返回选人（联机由 LAN returnToRoom 接管）
             TraceLang('debug.trace.data.game_ctrl.back_select');
 
             GameEvent.dispatchEvent(GameEvent.GAME_END);
-            MainGame.I.goSelect();
+            if (backToSelectOnFightEnd) {
+                MainGame.I.goSelect();
+            }
         }
     }
 

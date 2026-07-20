@@ -71,6 +71,11 @@ public class SelectFighterStage implements IStage {
     private static const SELECT_STATE_MAP:int     = 2;
     public static var AUTO_FINISH:Boolean = true;
     /**
+     * Online draft: P1/P2 alternate one pick at a time (MOBA-style).
+     * Both sides see each other's picks via network PICK sync.
+     */
+    public static var DRAFT_MODE:Boolean = false;
+    /**
      * LAN/online: only this player may move/confirm (1=P1/host, 2=P2/client, 0=both/local).
      */
     public static var ONLY_INPUT_PLAYER:int = 0;
@@ -91,6 +96,8 @@ public class SelectFighterStage implements IStage {
     private var _curStep:int = 0;
     private var _tweenTime:int = 500;
     private var _twoPlayerSelectFin:Boolean;  //解决两玩家同时选人
+    /** Draft turn: 1 = P1 picks next, 2 = P2 picks next */
+    private var _draftTurn:int = 1;
     [Embed(source='/../assets/cancel.png')]
     private var _backMenuPicClass:Class;
     private var _backMenuBtn:Sprite;
@@ -218,9 +225,39 @@ public class SelectFighterStage implements IStage {
 
     public function setSelect(player:int, selects:Array):void {
         var selt:SelecterItemUI = player == 1 ? _p1Slt : _p2Slt;
+        if (!selt) {
+            return;
+        }
+        if (DRAFT_MODE) {
+            applyDraftPick(player, selects, false);
+            return;
+        }
         selt.setCurrentSelect(selects);
         selt.removeSelecter();
         SoundCtrl.I.sndConfrim();
+    }
+
+    /**
+     * Apply a draft pick from network (or local mirror).
+     * @param advanceTurn if true, switch turn after applying (remote PICK).
+     */
+    public function applyDraftPick(player:int, selects:Array, advanceTurn:Boolean = true):void {
+        var selt:SelecterItemUI = player == 1 ? _p1Slt : _p2Slt;
+        if (!selt || !selects) {
+            return;
+        }
+        selt.applyNetworkPicks(selects);
+        SoundCtrl.I.sndConfrim();
+        if (advanceTurn) {
+            _draftTurn = player == 1 ? 2 : 1;
+            if (selt.selectFinish()) {
+                var other:SelecterItemUI = player == 1 ? _p2Slt : _p1Slt;
+                if (other && !other.selectFinish()) {
+                    _draftTurn = player == 1 ? 2 : 1;
+                }
+            }
+        }
+        applyDraftTurnInput();
     }
 
     public function nextStep():void {
@@ -678,8 +715,14 @@ public class SelectFighterStage implements IStage {
         if (GameMode.isVsPeople()) {
             initSelecterP1();
             initSelecterP2();
-            // Online/LAN: each machine only controls its own cursor (parallel pick)
-            if (ONLY_INPUT_PLAYER == 1 && _p2Slt) {
+            _twoPlayerSelectFin = false;
+            _draftTurn          = 1;
+
+            if (DRAFT_MODE) {
+                // MOBA-style: both bars visible; only current turn + local side can pick
+                applyDraftTurnInput();
+            }
+            else if (ONLY_INPUT_PLAYER == 1 && _p2Slt) {
                 _p2Slt.enabled = false;
                 _p2Slt.removeSelecter();
             }
@@ -687,10 +730,24 @@ public class SelectFighterStage implements IStage {
                 _p1Slt.enabled = false;
                 _p1Slt.removeSelecter();
             }
-            _twoPlayerSelectFin = false;
         }
         else {
             initSelecterP1();
+        }
+    }
+
+    private function applyDraftTurnInput():void {
+        if (!DRAFT_MODE) {
+            return;
+        }
+        var local:int = ONLY_INPUT_PLAYER;
+        if (_p1Slt) {
+            var p1Turn:Boolean = _draftTurn == 1 && !_p1Slt.selectFinish();
+            _p1Slt.enabled     = p1Turn && (local == 0 || local == 1);
+        }
+        if (_p2Slt) {
+            var p2Turn:Boolean = _draftTurn == 2 && !_p2Slt.selectFinish();
+            _p2Slt.enabled     = p2Turn && (local == 0 || local == 2);
         }
     }
 
@@ -1241,12 +1298,43 @@ public class SelectFighterStage implements IStage {
     }
 
     private function playerSeltBack(selt:SelecterItemUI):void {
+        if (DRAFT_MODE && GameMode.isVsPeople()) {
+            var player:int = selt == _p1Slt ? 1 : 2;
+            GameEvent.dispatchEvent(GameEvent.SELECT_FIGHTER_PICK, {
+                player : player,
+                selects: selt.getCurrentSelectes()
+            });
+
+            if (selt.selectFinish()) {
+                GameEvent.dispatchEvent(GameEvent.SELECT_FIGHTER_STEP, selt.getCurrentSelectes());
+                var otherSlt:SelecterItemUI = selt == _p1Slt ? _p2Slt : _p1Slt;
+                if (otherSlt && otherSlt.selectFinish() && !_twoPlayerSelectFin) {
+                    _twoPlayerSelectFin = true;
+                    if (!AUTO_FINISH) {
+                        selt.enabled = false;
+                        applyDraftTurnInput();
+                        return;
+                    }
+                    nextStep();
+                }
+                else {
+                    _draftTurn = player == 1 ? 2 : 1;
+                    applyDraftTurnInput();
+                }
+                return;
+            }
+
+            _draftTurn = player == 1 ? 2 : 1;
+            applyDraftTurnInput();
+            return;
+        }
+
         if (selt.selectFinish()) {
             if (GameMode.isVsPeople()) {
                 GameEvent.dispatchEvent(GameEvent.SELECT_FIGHTER_STEP, selt.getCurrentSelectes());
 
-                var otherSlt:SelecterItemUI = selt == _p1Slt ? _p2Slt : _p1Slt;
-                if (otherSlt && otherSlt.selectFinish() && !_twoPlayerSelectFin) {
+                var otherSlt2:SelecterItemUI = selt == _p1Slt ? _p2Slt : _p1Slt;
+                if (otherSlt2 && otherSlt2.selectFinish() && !_twoPlayerSelectFin) {
                     _twoPlayerSelectFin = true;
                     if (!AUTO_FINISH) {
                         // Wait for host NEXT_STEP; still clear local cursor
@@ -1260,8 +1348,6 @@ public class SelectFighterStage implements IStage {
                 nextStep();
             }
             selt.destory();
-//				if(selt == _p1Slt) _p1Slt = null;
-//				if(selt == _p2Slt) _p2Slt = null;
         }
         else {
             if (!selt.randoms) {

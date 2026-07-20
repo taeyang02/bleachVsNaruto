@@ -31,13 +31,17 @@ public class SelectFighterClientLogic {
     public function init():void {
         SelectFighterStage.AUTO_FINISH       = false;
         SelectFighterStage.ONLY_INPUT_PLAYER = 2;
+        SelectFighterStage.DRAFT_MODE        = true;
         LoadingStage.AUTO_START_GAME         = false;
+        GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_PICK, onSelectPick);
         GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_STEP, onSelectStep);
         GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_INDEX, onSelectIndex);
     }
 
     public function dispose():void {
         SelectFighterStage.ONLY_INPUT_PLAYER = 0;
+        SelectFighterStage.DRAFT_MODE        = false;
+        GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_PICK, onSelectPick);
         GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_STEP, onSelectStep);
         GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_INDEX, onSelectIndex);
     }
@@ -52,6 +56,15 @@ public class SelectFighterClientLogic {
         var stg:SelectFighterStage;
 
         switch (type) {
+        case SelectFighterDataType.PICK:
+            try {
+                stg = MainGame.stageCtrl.currentStage as SelectFighterStage;
+                // Host pick → apply as P1
+                stg.applyDraftPick(1, arr[2], true);
+            }
+            catch (e:Error) {
+            }
+            break;
         case SelectFighterDataType.SELECT:
             try {
                 stg = MainGame.stageCtrl.currentStage as SelectFighterStage;
@@ -116,6 +129,18 @@ public class SelectFighterClientLogic {
                     MainGame.stageCtrl.currentStage as LoadingStage
             ).gotoGame(arr[2], arr[3]);
         }
+    }
+
+    private function onSelectPick(e:GameEvent):void {
+        var p:Object = e.param;
+        if (!p) {
+            return;
+        }
+        // Guest only sends own (P2) picks
+        if (int(p.player) != 2) {
+            return;
+        }
+        LANClientCtrl.I.sendTCP([SelectFighterDataType.KEY, SelectFighterDataType.PICK, p.selects]);
     }
 
     private function onSelectStep(e:GameEvent):void {

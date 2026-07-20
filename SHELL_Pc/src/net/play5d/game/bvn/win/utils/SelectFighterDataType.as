@@ -26,6 +26,8 @@ public class SelectFighterDataType {
     public static const FIGHTER_FINISH:int = 3;
     public static const INDEX:int          = 4;
     public static const INDEX_FINISH:int   = 5;
+    /** Draft pick: [KEY, PICK, playerId, selectsArray] */
+    public static const PICK:int           = 6;
 
 
     public function SelectFighterDataType() {

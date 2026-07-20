@@ -37,8 +37,10 @@ public class SelectFighterServerLogic {
 
         SelectFighterStage.AUTO_FINISH       = false;
         SelectFighterStage.ONLY_INPUT_PLAYER = 1;
+        SelectFighterStage.DRAFT_MODE        = true;
         LoadingStage.AUTO_START_GAME         = false;
 
+        GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_PICK, onSelectPick);
         GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_STEP, onSelectStep);
         GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_FINISH, onSelectFinish);
         GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_INDEX, onSelectFighterIndex);
@@ -46,6 +48,8 @@ public class SelectFighterServerLogic {
 
     public function dispose():void {
         SelectFighterStage.ONLY_INPUT_PLAYER = 0;
+        SelectFighterStage.DRAFT_MODE        = false;
+        GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_PICK, onSelectPick);
         GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_STEP, onSelectStep);
         GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_FINISH, onSelectFinish);
         GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_INDEX, onSelectFighterIndex);
@@ -60,6 +64,16 @@ public class SelectFighterServerLogic {
         var type:int = data[1];
 
         switch (type) {
+        case SelectFighterDataType.PICK:
+            try {
+                var stgPick:SelectFighterStage = MainGame.stageCtrl.currentStage as SelectFighterStage;
+                // Guest pick → apply as P2, advance turn so host can pick next
+                stgPick.applyDraftPick(2, arr[2], true);
+                checkSelectFinish();
+            }
+            catch (e:Error) {
+            }
+            break;
         case SelectFighterDataType.SELECT:
             try {
                 var stg:SelectFighterStage = MainGame.stageCtrl.currentStage as SelectFighterStage;
@@ -84,16 +98,14 @@ public class SelectFighterServerLogic {
     }
 
     private function checkSelectFinish():void {
-//			try{
         var stg:SelectFighterStage = MainGame.stageCtrl.currentStage as SelectFighterStage;
-        if (stg.p1SelectFinish && stg.p2SelectFinish) {
+        if (stg && stg.p1SelectFinish && stg.p2SelectFinish) {
             clearTimeout(_timeout);
             _timeout = setTimeout(function ():void {
                 LANServerCtrl.I.sendTCP([SelectFighterDataType.KEY, SelectFighterDataType.NEXT_STEP]);
                 stg.nextStep();
             }, 1000);
         }
-//			}catch(e:Error){}
     }
 
     private function checkSelectIndexFinish():void {
@@ -114,6 +126,19 @@ public class SelectFighterServerLogic {
         }
     }
 
+    private function onSelectPick(e:GameEvent):void {
+        var p:Object = e.param;
+        if (!p) {
+            return;
+        }
+        // Host only relays own (P1) picks; guest picks arrive via receiveSelect
+        if (int(p.player) != 1) {
+            return;
+        }
+        LANServerCtrl.I.sendTCP([SelectFighterDataType.KEY, SelectFighterDataType.PICK, p.selects]);
+        checkSelectFinish();
+    }
+
     private function onSelectStep(e:GameEvent):void {
         var data:Array = [SelectFighterDataType.KEY, SelectFighterDataType.SELECT, e.param];
         LANServerCtrl.I.sendTCP(data);
@@ -131,10 +156,8 @@ public class SelectFighterServerLogic {
         ];
         LANServerCtrl.I.sendTCP(data);
 
-//			try{
         var stg:SelectFighterStage = MainGame.stageCtrl.currentStage as SelectFighterStage;
         stg.goLoadGame();
-//			}catch(e:Error){}
 
     }
 

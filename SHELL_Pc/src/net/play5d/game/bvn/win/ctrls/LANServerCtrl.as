@@ -29,6 +29,8 @@ import net.play5d.game.bvn.fighter.FighterMain;
 import net.play5d.game.bvn.input.GameInputer;
 import net.play5d.game.bvn.interfaces.GameInterface;
 import net.play5d.game.bvn.stage.GameStage;
+import net.play5d.game.bvn.stage.LoadingStage;
+import net.play5d.game.bvn.stage.SelectFighterStage;
 import net.play5d.game.bvn.ui.GameUI;
 import net.play5d.game.bvn.win.data.ClientVO;
 import net.play5d.game.bvn.win.data.HostVO;
@@ -245,6 +247,7 @@ public class LANServerCtrl {
 
     public function gameStart():void {
         active = true;
+        GameCtrl.I.backToSelectOnFightEnd = false;
         GameInterface.instance.updateInputConfig();
         LockFrameLogic.I.initServer();
         _renderFrame = 1;
@@ -261,8 +264,53 @@ public class LANServerCtrl {
         initSyncEvent();
     }
 
+    /**
+     * Match over: keep sockets, reopen room lobby for rematch.
+     */
+    public function returnToRoom():void {
+        if (_selectLogic) {
+            _selectLogic.dispose();
+            _selectLogic = null;
+        }
+        if (_connGameLogic) {
+            _connGameLogic.dispose();
+            _connGameLogic = null;
+        }
+        disposeSyncEvent();
+        LockFrameLogic.I.dispose();
+
+        active                             = false;
+        GameCtrl.I.autoEndRoundAble        = true;
+        GameCtrl.I.autoStartAble           = true;
+        GameCtrl.I.backToSelectOnFightEnd  = true;
+        GameCtrl.I.fightFinished           = false;
+        SelectFighterStage.AUTO_FINISH     = true;
+        SelectFighterStage.DRAFT_MODE      = false;
+        SelectFighterStage.ONLY_INPUT_PLAYER = 0;
+        LoadingStage.AUTO_START_GAME       = true;
+
+        GameInterface.instance.updateInputConfig();
+        GameInputer.enabled = true;
+        GameUI.closeAlert();
+        GameUI.closeConfrim();
+        LanGameMenuCtrl.I.dispose();
+
+        var room:LANRoomState = new LANRoomState();
+        MainGame.stageCtrl.goStage(room);
+        room.hostMode();
+
+        for each (var cv:ClientVO in _clients) {
+            if (cv) {
+                room.addPlayer(cv.id || cv.name, cv.name);
+            }
+        }
+        room.setStartAble(_clients && _clients.length > 0);
+        room.pushChart('Match finished — press Start for rematch');
+    }
+
     public function gameEnd():void {
         active = false;
+        GameCtrl.I.backToSelectOnFightEnd = true;
         GameInterface.instance.updateInputConfig();
         LockFrameLogic.I.dispose();
 
@@ -537,12 +585,16 @@ public class LANServerCtrl {
     }
 
     private function onGameEnd(e:GameEvent):void {
-
-        _connGameLogic.enabled = false;
-        _connGameLogic.reset();
+        if (_connGameLogic) {
+            _connGameLogic.enabled = false;
+            _connGameLogic.reset();
+        }
 
         var data:Array = ['SYNC', LanSyncType.GAME_FINISH];
         sendTCP(data);
+
+        // Both return to shared room for rematch
+        returnToRoom();
     }
 
     private function onRoundStart(e:GameEvent):void {
