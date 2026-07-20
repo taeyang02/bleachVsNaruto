@@ -19,12 +19,46 @@ $ErrorActionPreference = 'Stop'
 $Root = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 Set-Location $Root
 
-function Download-File([string]$Url, [string]$OutFile) {
-    Write-Host "GET $Url"
-    Invoke-WebRequest -Uri $Url -OutFile $OutFile
-    if (-not (Test-Path $OutFile) -or ((Get-Item $OutFile).Length -lt 64)) {
-        throw "Download failed or too small: $OutFile"
+function Download-File([string]$Url, [string]$OutFile, [int]$Retries = 5) {
+    $dir = Split-Path -Parent $OutFile
+    if ($dir) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
     }
+    $lastErr = $null
+    for ($i = 1; $i -le $Retries; $i++) {
+        try {
+            Write-Host "GET ($i/$Retries) $Url"
+            # Avoid flaky raw.githubusercontent.com drops: retry with backoff
+            Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+            if ((Test-Path $OutFile) -and ((Get-Item $OutFile).Length -ge 64)) {
+                return
+            }
+            throw "Download too small: $OutFile"
+        }
+        catch {
+            $lastErr = $_
+            Write-Warning "Download attempt $i failed: $($_.Exception.Message)"
+            Start-Sleep -Seconds ([Math]::Min(30, 2 * $i))
+        }
+    }
+    throw "Download failed after $Retries tries: $Url`n$lastErr"
+}
+
+function Get-TagAssetsRoot([string]$Tag) {
+    $zip = Join-Path $env:TEMP "TagAssets-$Tag.zip"
+    $extract = Join-Path $env:TEMP "TagAssets-$Tag"
+    $url = "https://github.com/5DPLAY-Game-Studio/BleachVsNaruto_TagAssets/archive/refs/tags/$Tag.zip"
+    Download-File $url $zip
+    if (Test-Path $extract) {
+        Remove-Item $extract -Recurse -Force
+    }
+    Expand-Archive -Path $zip -DestinationPath $extract -Force
+    $inner = Get-ChildItem $extract -Directory | Select-Object -First 1
+    if (-not $inner) {
+        throw "TagAssets extract empty: $Tag"
+    }
+    Write-Host "TagAssets $Tag -> $($inner.FullName)"
+    return $inner.FullName
 }
 
 function Assert-Path([string]$Path) {
@@ -116,7 +150,7 @@ if (-not (Test-Path $stubOut)) {
 Assert-Path $stubOut
 Write-Host "sound_stubs.swc OK: $stubOut"
 
-Write-Host '== UI Embed SWFs (legacy TagAssets names -> SwfLib names) =='
+Write-Host '== UI Embed SWFs + fonts (from TagAssets zip, not per-file raw) =='
 $swfDir = Join-Path $Root 'shared\lib\swf'
 New-Item -ItemType Directory -Force -Path $swfDir | Out-Null
 
@@ -136,7 +170,8 @@ $swfMap = @{
     'win_ui.swf'    = 'win_ui.swf'
 }
 
-$uiSwfBase = "https://raw.githubusercontent.com/5DPLAY-Game-Studio/BleachVsNaruto_TagAssets/$UiAssetsTag/shared/lib/swf"
+$uiRoot = Get-TagAssetsRoot $UiAssetsTag
+$uiSwfSrc = Join-Path $uiRoot 'shared\lib\swf'
 foreach ($destName in $swfMap.Keys) {
     $dest = Join-Path $swfDir $destName
     if ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 1024)) {
@@ -144,16 +179,16 @@ foreach ($destName in $swfMap.Keys) {
         continue
     }
     $srcName = $swfMap[$destName]
-    $tmp = Join-Path $env:TEMP "bvn-ui-$srcName"
-    Download-File "$uiSwfBase/$srcName" $tmp
-    Copy-Item $tmp $dest -Force
+    $src = Join-Path $uiSwfSrc $srcName
+    Assert-Path $src
+    Copy-Item $src $dest -Force
     Write-Host "Prepared $destName (<= $srcName)"
 }
 
-Write-Host '== Font SWFs (newer TagAssets dropped these; language.json still needs them) =='
+Write-Host '== Font SWFs =='
 $fontDir = Join-Path $Root 'shared\assets\assets\font'
 New-Item -ItemType Directory -Force -Path $fontDir | Out-Null
-$fontBase = "https://raw.githubusercontent.com/5DPLAY-Game-Studio/BleachVsNaruto_TagAssets/$UiAssetsTag/shared/assets/assets/font"
+$fontSrcDir = Join-Path $uiRoot 'shared\assets\assets\font'
 $fontFiles = @(
     'microsoft_yahei.swf',
     'microsoft_jhenghei.swf',
@@ -167,41 +202,33 @@ foreach ($fontName in $fontFiles) {
         Write-Host "Keep existing font/$fontName"
         continue
     }
-    $tmp = Join-Path $env:TEMP "bvn-font-$fontName"
-    Download-File "$fontBase/$fontName" $tmp
-    Copy-Item $tmp $dest -Force
+    $src = Join-Path $fontSrcDir $fontName
+    Assert-Path $src
+    Copy-Item $src $dest -Force
     Write-Host "Prepared font/$fontName"
 }
 
-Write-Host '== effect.swf (removed from newer TagAssets; required by AssetManager.loadBasic) =='
+$soundXmlSrc = Join-Path $uiRoot 'shared\assets\assets\sounds\sound.xml'
+$soundXmlDest = Join-Path $Root 'shared\assets\assets\sounds\sound.xml'
+if ((Test-Path $soundXmlSrc) -and -not (Test-Path $soundXmlDest)) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $soundXmlDest) | Out-Null
+    Copy-Item $soundXmlSrc $soundXmlDest -Force
+    Write-Host 'Prepared assets/sounds/sound.xml'
+}
+
+Write-Host '== effect.swf (from older TagAssets zip) =='
 $effectDest = Join-Path $Root 'shared\assets\assets\effect.swf'
 $effectTag = if ($env:EFFECT_TAG_ASSETS) { $env:EFFECT_TAG_ASSETS } else { '3.7.0.0.10192024_alpha' }
 if ((Test-Path $effectDest) -and ((Get-Item $effectDest).Length -gt 1024)) {
-    Write-Host "Keep existing assets/effect.swf"
+    Write-Host 'Keep existing assets/effect.swf'
 }
 else {
-    $effectUrl = "https://raw.githubusercontent.com/5DPLAY-Game-Studio/BleachVsNaruto_TagAssets/$effectTag/shared/assets/effect.swf"
-    $tmp = Join-Path $env:TEMP 'bvn-effect.swf'
-    Download-File $effectUrl $tmp
+    $effectRoot = Get-TagAssetsRoot $effectTag
+    $effectSrc = Join-Path $effectRoot 'shared\assets\effect.swf'
+    Assert-Path $effectSrc
     New-Item -ItemType Directory -Force -Path (Split-Path $effectDest) | Out-Null
-    Copy-Item $tmp $effectDest -Force
+    Copy-Item $effectSrc $effectDest -Force
     Write-Host "Prepared assets/effect.swf (<= TagAssets $effectTag)"
-}
-
-# sound.xml also vanished from newer TagAssets; keep if referenced later
-$soundXmlDest = Join-Path $Root 'shared\assets\assets\sounds\sound.xml'
-if (-not (Test-Path $soundXmlDest)) {
-    $soundXmlUrl = "https://raw.githubusercontent.com/5DPLAY-Game-Studio/BleachVsNaruto_TagAssets/$UiAssetsTag/shared/assets/assets/sounds/sound.xml"
-    $tmp = Join-Path $env:TEMP 'bvn-sound.xml'
-    try {
-        Download-File $soundXmlUrl $tmp
-        New-Item -ItemType Directory -Force -Path (Split-Path $soundXmlDest) | Out-Null
-        Copy-Item $tmp $soundXmlDest -Force
-        Write-Host 'Prepared assets/sounds/sound.xml'
-    }
-    catch {
-        Write-Host "Skip sound.xml: $($_.Exception.Message)"
-    }
 }
 
 Write-Host '== Patch KernelLogic $UI$Type annotations -> MovieClip (CI only) =='
