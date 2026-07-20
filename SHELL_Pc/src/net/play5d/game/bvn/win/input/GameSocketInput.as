@@ -141,7 +141,9 @@ public class GameSocketInput implements IGameInput {
             _data.left ||= p.left();
             _data.right ||= p.right();
 
-            _data.attack ||= p.attack();
+            // Select screen uses GameInputer.select() → socket.select() → attack.
+            // Also treat dedicated select keys as confirm.
+            _data.attack ||= p.attack() || p.select();
             _data.jump ||= p.jump();
             _data.dash ||= p.dash();
 

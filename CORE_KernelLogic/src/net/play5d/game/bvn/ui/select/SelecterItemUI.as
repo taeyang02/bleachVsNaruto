@@ -21,6 +21,7 @@ import net.play5d.game.bvn.data.AssisterModel;
 import net.play5d.game.bvn.data.FighterModel;
 import net.play5d.game.bvn.data.vos.FighterVO;
 import net.play5d.game.bvn.data.vos.SelectVO;
+import net.play5d.game.bvn.utils.MCUtils;
 import net.play5d.game.bvn.utils.ResUtils;
 import net.play5d.kyo.utils.KyoUtils;
 
@@ -32,11 +33,11 @@ public class SelecterItemUI {
         ui              = ResUtils.I.createDisplayObject(ResUtils.swfLib.select, '$select$MC_selectItemMc');
         ui.mouseEnabled = ui.mouseChildren = false;
         var frame:int   = playerType == 1 ? 1 : 2;
-        // Legacy slt_item_mc may put frames on root instead of child mc
-        if (ui.mc) {
+        // Prefer child mc (new assets); only stop if the frame exists
+        if (ui.mc && ui.mc.totalFrames >= frame) {
             ui.mc.gotoAndStop(frame);
         }
-        else {
+        else if (ui.totalFrames >= frame) {
             ui.gotoAndStop(frame);
         }
     }
@@ -181,19 +182,28 @@ public class SelecterItemUI {
 
         var _this:* = this;
 
-        ui.gotoAndPlay('select');
+        // Legacy select cursor SWF may not have a 'select' frame label (#2109)
+        if (MCUtils.hasFrameLabel(ui, 'select')) {
+            ui.gotoAndPlay('select');
+            KyoUtils.addFrameScript(ui, function ():void {
+                finishSelectAnim(_this, back);
+            });
+        }
+        else {
+            finishSelectAnim(_this, back);
+        }
 
         updateRandom();
 
-        KyoUtils.addFrameScript(ui, function ():void {
-            if (!selectFinish()) {
-                enabled = true;
-            }
-            if (back != null) {
-                back(_this);
-            }
-        });
+    }
 
+    private function finishSelectAnim(_this:*, back:Function):void {
+        if (!selectFinish()) {
+            enabled = true;
+        }
+        if (back != null) {
+            back(_this);
+        }
     }
 
     public function moveTo(x:Number, y:Number):void {

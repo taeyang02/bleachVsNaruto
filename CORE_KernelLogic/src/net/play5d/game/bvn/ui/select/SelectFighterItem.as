@@ -21,6 +21,7 @@ import com.greensock.TweenLite;
 import com.greensock.easing.Back;
 
 import flash.display.DisplayObject;
+import flash.display.DisplayObjectContainer;
 import flash.events.Event;
 import flash.events.EventDispatcher;
 import flash.filters.GlowFilter;
@@ -56,13 +57,7 @@ public class SelectFighterItem extends EventDispatcher {
         this.fighterData = fighterData;
 
         var face:DisplayObject = AssetManager.I.getFighterFace(fighterData);
-        // Legacy select_item_mc may expose face slot as ct / ctmc
-        var faceCt:* = ui.ct ? ui.ct : (
-                           ui.getChildByName('ct') || ui.getChildByName('ctmc')
-                       );
-        if (face && faceCt) {
-            faceCt.addChild(face);
-        }
+        attachFace(face);
 
         ui.mouseChildren = false;
         ui.buttonMode    = true;
@@ -170,6 +165,31 @@ public class SelectFighterItem extends EventDispatcher {
             }
             ui = null;
         }
+    }
+
+    private function attachFace(face:DisplayObject):void {
+        if (!face || !ui) {
+            return;
+        }
+        var slot:DisplayObjectContainer = null;
+        try {
+            if (ui.ct is DisplayObjectContainer) {
+                slot = ui.ct as DisplayObjectContainer;
+            }
+        }
+        catch (e:Error) {
+        }
+        if (!slot) {
+            slot = ui.getChildByName('ct') as DisplayObjectContainer;
+        }
+        if (!slot) {
+            slot = ui.getChildByName('ctmc') as DisplayObjectContainer;
+        }
+        // Legacy assets: add portrait onto the item itself if no face slot exists
+        if (!slot) {
+            slot = ui;
+        }
+        slot.addChild(face);
     }
 
     private function initMoreUI():void {

@@ -35,8 +35,9 @@ public class SelectFighterServerLogic {
 
     public function init():void {
 
-        SelectFighterStage.AUTO_FINISH = false;
-        LoadingStage.AUTO_START_GAME   = false;
+        SelectFighterStage.AUTO_FINISH       = false;
+        SelectFighterStage.ONLY_INPUT_PLAYER = 1;
+        LoadingStage.AUTO_START_GAME         = false;
 
         GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_STEP, onSelectStep);
         GameEvent.addEventListener(GameEvent.SELECT_FIGHTER_FINISH, onSelectFinish);
@@ -44,6 +45,7 @@ public class SelectFighterServerLogic {
     }
 
     public function dispose():void {
+        SelectFighterStage.ONLY_INPUT_PLAYER = 0;
         GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_STEP, onSelectStep);
         GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_FINISH, onSelectFinish);
         GameEvent.removeEventListener(GameEvent.SELECT_FIGHTER_INDEX, onSelectFighterIndex);

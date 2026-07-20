@@ -70,6 +70,10 @@ public class SelectFighterStage implements IStage {
     private static const SELECT_STATE_ASSIST:int  = 1;
     private static const SELECT_STATE_MAP:int     = 2;
     public static var AUTO_FINISH:Boolean = true;
+    /**
+     * LAN/online: only this player may move/confirm (1=P1/host, 2=P2/client, 0=both/local).
+     */
+    public static var ONLY_INPUT_PLAYER:int = 0;
 
     public function SelectFighterStage() {
     }
@@ -674,6 +678,13 @@ public class SelectFighterStage implements IStage {
         if (GameMode.isVsPeople()) {
             initSelecterP1();
             initSelecterP2();
+            // Online/LAN: each machine only controls its own cursor
+            if (ONLY_INPUT_PLAYER == 1 && _p2Slt) {
+                _p2Slt.enabled = false;
+            }
+            else if (ONLY_INPUT_PLAYER == 2 && _p1Slt) {
+                _p1Slt.enabled = false;
+            }
             _twoPlayerSelectFin = false;
         }
         else {

@@ -150,7 +150,9 @@ public class SelectedFighterUI extends EventDispatcher {
                 ResUtils.swfLib.select,
                 '$loading$MC_selectText'
         );
-        au.gotoAndStop(index);
+        if (au && au.totalFrames >= index) {
+            au.gotoAndStop(index);
+        }
         ui.addChild(au);
         if (ui is $select$SP_selectBarItemP1) {
             au.x = -8;
@@ -168,7 +170,9 @@ public class SelectedFighterUI extends EventDispatcher {
                 ResUtils.swfLib.select,
                 '$loading$MC_selectText'
         );
-        au.gotoAndStop(4);
+        if (au && au.totalFrames >= 4) {
+            au.gotoAndStop(4);
+        }
         ui.addChild(au);
         if (ui is $select$SP_selectBarItemP1) {
             au.x = -8;
