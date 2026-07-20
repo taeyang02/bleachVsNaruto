@@ -160,8 +160,10 @@ try {
         $outAir = Join-Path $dist 'BleachVsNaruto.air'
         if (Test-Path $outAir) { Remove-Item $outAir -Force }
         Write-Host '== ADT package .air =='
+        # -tsa none: GitHub Actions often cannot reach Adobe TSA (Connection reset)
         & $adt -package `
             -storetype pkcs12 -keystore $keystore -storepass $KeystorePass `
+            -tsa none `
             -target air $outAir `
             launch-app.xml launch.swf `
             -C (Join-Path $Root 'shared\assets') assets `
@@ -173,8 +175,10 @@ try {
         $bundleDir = Join-Path $dist 'BleachVsNaruto'
         if (Test-Path $bundleDir) { Remove-Item $bundleDir -Recurse -Force }
         Write-Host '== ADT package Windows captive bundle =='
+        # -tsa none: GitHub Actions often cannot reach Adobe TSA (Connection reset)
         & $adt -package `
             -storetype pkcs12 -keystore $keystore -storepass $KeystorePass `
+            -tsa none `
             -target bundle $bundleDir `
             launch-app.xml launch.swf `
             -C (Join-Path $Root 'shared\assets') assets `
