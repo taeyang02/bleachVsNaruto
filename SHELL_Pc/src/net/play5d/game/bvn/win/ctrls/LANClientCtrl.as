@@ -226,6 +226,7 @@ public class LANClientCtrl {
     }
 
     public function dispose():void {
+        cancelFindHost();
         if (LANGameCtrl.I.isOnline) {
             var relay:OnlineRelayClient = OnlineRelayClient.I;
             relay.onGameTcp  = null;
@@ -604,6 +605,10 @@ public class LANClientCtrl {
     }
 
     private function findHostTimerHandler(e:TimerEvent):void {
+        if (!_udpSocket) {
+            cancelFindHost();
+            return;
+        }
         _udpSocket.sendBroadcast(LANGameCtrl.PORT_UDP_SERVER, SocketMsgFactory.createFindHostMsg());
     }
 

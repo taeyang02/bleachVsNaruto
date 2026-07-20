@@ -179,6 +179,9 @@ public class LANRoomState implements IStage {
     }
 
     public function pushChart(str:String, name:String = null):void {
+        if (!_txtChart) {
+            return;
+        }
         var chartStr:String = name ? name + ' : ' + str : str;
         _txtChart.appendText(chartStr + '\n');
     }
@@ -273,34 +276,40 @@ public class LANRoomState implements IStage {
     }
 
     private function startTimerHandler(e:TimerEvent):void {
-        if (e.type == TimerEvent.TIMER) {
+        try {
+            if (e.type == TimerEvent.TIMER) {
+                if (_startTimer) {
+                    pushChart((
+                              _startTimer.repeatCount - _startTimer.currentCount + 1
+                              ) + 's until game starts', null);
+                }
+            }
 
-//				if(_startTimer.currentCount == 2){
-//					lockStart();
-//				}
+            if (e.type == TimerEvent.TIMER_COMPLETE) {
+                // Set mode before gameStart/goSelect (JSON may deliver Number/String)
+                var mode:int = _host ? int(_host.gameMode) : 1;
+                switch (mode) {
+                case 2:
+                    GameMode.currentMode = GameMode.SINGLE_VS_PEOPLE;
+                    break;
+                case 1:
+                default:
+                    GameMode.currentMode = GameMode.TEAM_VS_PEOPLE;
+                    break;
+                }
 
-            pushChart((
-                      _startTimer.repeatCount - _startTimer.currentCount + 1
-                      ) + 's until game starts', null);
+                if (_isOwner) {
+                    LANServerCtrl.I.gameStart();
+                }
+                else {
+                    LANClientCtrl.I.gameStart();
+                }
+                MainGame.I.goSelect();
+            }
         }
-
-        if (e.type == TimerEvent.TIMER_COMPLETE) {
-            if (_isOwner) {
-                LANServerCtrl.I.gameStart();
-            }
-            else {
-                LANClientCtrl.I.gameStart();
-            }
-
-            switch (_host.gameMode) {
-            case 1:
-                GameMode.currentMode = GameMode.TEAM_VS_PEOPLE;
-                break;
-            case 2:
-                GameMode.currentMode = GameMode.SINGLE_VS_PEOPLE;
-                break;
-            }
-            MainGame.I.goSelect();
+        catch (err:Error) {
+            GameUI.alert('ERROR', 'Start failed: ' + err.message);
+            throw err;
         }
     }
 

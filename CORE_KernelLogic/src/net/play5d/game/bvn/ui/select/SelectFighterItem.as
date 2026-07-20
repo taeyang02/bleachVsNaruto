@@ -56,8 +56,12 @@ public class SelectFighterItem extends EventDispatcher {
         this.fighterData = fighterData;
 
         var face:DisplayObject = AssetManager.I.getFighterFace(fighterData);
-        if (face) {
-            ui.ct.addChild(face);
+        // Legacy select_item_mc may expose face slot as ct / ctmc
+        var faceCt:* = ui.ct ? ui.ct : (
+                           ui.getChildByName('ct') || ui.getChildByName('ctmc')
+                       );
+        if (face && faceCt) {
+            faceCt.addChild(face);
         }
 
         ui.mouseChildren = false;
@@ -78,7 +82,7 @@ public class SelectFighterItem extends EventDispatcher {
         }
 
 //        ui.warning.visible = fighterData.hasWarning;
-        if (!fighterData.hasWarning) {
+        if (!fighterData.hasWarning && ui.warning && ui.contains(ui.warning)) {
             ui.removeChild(ui.warning);
         }
     }

@@ -138,6 +138,12 @@ public class launch extends Sprite {
         else {
             msg = String(err);
         }
+        // Extra stack from throw site helps when runtime Error was built without AS3 frames
+        try {
+            msg += '\n-- context --\n' + new Error('uncaught-context').getStackTrace();
+        }
+        catch (ignore:Error) {
+        }
         GameLogger.log('UNCAUGHT: ' + msg);
         showFatal('UNCAUGHT:\n' + msg);
     }

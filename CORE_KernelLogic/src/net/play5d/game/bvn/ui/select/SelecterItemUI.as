@@ -31,7 +31,14 @@ public class SelecterItemUI {
         _playerType     = playerType;
         ui              = ResUtils.I.createDisplayObject(ResUtils.swfLib.select, '$select$MC_selectItemMc');
         ui.mouseEnabled = ui.mouseChildren = false;
-        ui.mc.gotoAndStop(playerType == 1 ? 1 : 2);
+        var frame:int   = playerType == 1 ? 1 : 2;
+        // Legacy slt_item_mc may put frames on root instead of child mc
+        if (ui.mc) {
+            ui.mc.gotoAndStop(frame);
+        }
+        else {
+            ui.gotoAndStop(frame);
+        }
     }
     public var ui:$select$MC_selectItemMc;
     public var currentFighter:FighterVO;

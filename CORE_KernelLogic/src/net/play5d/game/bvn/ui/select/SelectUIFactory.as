@@ -35,6 +35,9 @@ public class SelectUIFactory {
         var groupClassName:String = playerType == 1 ? '$select$SP_selectBarItemP1' : '$select$SP_selectBarItemP2';
 
         var groupClass:Class = ResUtils.I.getItemClass(ResUtils.swfLib.select, groupClassName);
+        if (!groupClass) {
+            throw new Error('Select bar symbol missing: ' + groupClassName);
+        }
 
         var group:SelectedFighterGroup = new SelectedFighterGroup(groupClass);
         group.x                        = playerType == 1 ? 10 : GameConfig.GAME_SIZE.x - 265;
