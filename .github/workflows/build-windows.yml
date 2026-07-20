@@ -121,15 +121,25 @@ jobs:
           "FLEX_HOME=$flex" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "FLEX_HOME=$flex"
 
-      - name: Verify LIB_KyoLib submodule
+      - name: Fetch LIB_KyoLib
         shell: pwsh
         run: |
-          if (-not (Test-Path 'LIB_KyoLib\asconfig.json')) {
-            Write-Host 'LIB_KyoLib empty, trying submodule init...'
-            git submodule update --init --recursive LIB_KyoLib
+          $ErrorActionPreference = 'Stop'
+          if (Test-Path 'LIB_KyoLib\asconfig.json') {
+            Write-Host 'LIB_KyoLib already present'
+            exit 0
           }
+
+          # Repo often has empty LIB_KyoLib dir without gitlink; clone directly.
+          if (Test-Path 'LIB_KyoLib') {
+            Remove-Item 'LIB_KyoLib' -Recurse -Force
+          }
+
+          $url = 'https://github.com/5DPLAY-Game-Studio/LIB_KyoLib.git'
+          Write-Host "Cloning $url ..."
+          git clone --depth 1 $url LIB_KyoLib
           if (-not (Test-Path 'LIB_KyoLib\asconfig.json')) {
-            throw 'LIB_KyoLib submodule missing. Ensure .gitmodules points to https://github.com/5DPLAY-Game-Studio/LIB_KyoLib.git'
+            throw 'LIB_KyoLib clone failed (asconfig.json missing)'
           }
           Write-Host 'LIB_KyoLib OK'
 
