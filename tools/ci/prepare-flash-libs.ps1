@@ -76,7 +76,8 @@ public class $name extends Sound {
 }
 
 $stubAsconfig = Join-Path $stubSrc 'asconfig.json'
-$stubOutRel = '../../../CORE_KernelLogic/lib/swc/sound_stubs.swc'
+# stubSrc = <repo>/tools/ci/_generated/sound_stubs → 4 levels up to repo root
+$stubOutRel = '../../../../CORE_KernelLogic/lib/swc/sound_stubs.swc'
 $stubOut = Join-Path $kernelSwcDir 'sound_stubs.swc'
 $stubAsconfigJson = @"
 {
@@ -102,7 +103,18 @@ try {
 finally {
     Pop-Location
 }
+
+# Recover if asconfigc resolved a wrong relative output path
+if (-not (Test-Path $stubOut)) {
+    $wrong = Join-Path $Root 'tools\CORE_KernelLogic\lib\swc\sound_stubs.swc'
+    if (Test-Path $wrong) {
+        New-Item -ItemType Directory -Force -Path $kernelSwcDir | Out-Null
+        Move-Item $wrong $stubOut -Force
+        Write-Host "Moved sound_stubs.swc from mistaken path -> $stubOut"
+    }
+}
 Assert-Path $stubOut
+Write-Host "sound_stubs.swc OK: $stubOut"
 
 Write-Host '== UI Embed SWFs (legacy TagAssets names -> SwfLib names) =='
 $swfDir = Join-Path $Root 'shared\lib\swf'
