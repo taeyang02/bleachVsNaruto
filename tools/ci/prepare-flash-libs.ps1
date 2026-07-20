@@ -173,6 +173,37 @@ foreach ($fontName in $fontFiles) {
     Write-Host "Prepared font/$fontName"
 }
 
+Write-Host '== effect.swf (removed from newer TagAssets; required by AssetManager.loadBasic) =='
+$effectDest = Join-Path $Root 'shared\assets\assets\effect.swf'
+$effectTag = if ($env:EFFECT_TAG_ASSETS) { $env:EFFECT_TAG_ASSETS } else { '3.7.0.0.10192024_alpha' }
+if ((Test-Path $effectDest) -and ((Get-Item $effectDest).Length -gt 1024)) {
+    Write-Host "Keep existing assets/effect.swf"
+}
+else {
+    $effectUrl = "https://raw.githubusercontent.com/5DPLAY-Game-Studio/BleachVsNaruto_TagAssets/$effectTag/shared/assets/effect.swf"
+    $tmp = Join-Path $env:TEMP 'bvn-effect.swf'
+    Download-File $effectUrl $tmp
+    New-Item -ItemType Directory -Force -Path (Split-Path $effectDest) | Out-Null
+    Copy-Item $tmp $effectDest -Force
+    Write-Host "Prepared assets/effect.swf (<= TagAssets $effectTag)"
+}
+
+# sound.xml also vanished from newer TagAssets; keep if referenced later
+$soundXmlDest = Join-Path $Root 'shared\assets\assets\sounds\sound.xml'
+if (-not (Test-Path $soundXmlDest)) {
+    $soundXmlUrl = "https://raw.githubusercontent.com/5DPLAY-Game-Studio/BleachVsNaruto_TagAssets/$UiAssetsTag/shared/assets/assets/sounds/sound.xml"
+    $tmp = Join-Path $env:TEMP 'bvn-sound.xml'
+    try {
+        Download-File $soundXmlUrl $tmp
+        New-Item -ItemType Directory -Force -Path (Split-Path $soundXmlDest) | Out-Null
+        Copy-Item $tmp $soundXmlDest -Force
+        Write-Host 'Prepared assets/sounds/sound.xml'
+    }
+    catch {
+        Write-Host "Skip sound.xml: $($_.Exception.Message)"
+    }
+}
+
 Write-Host '== Patch KernelLogic $UI$Type annotations -> MovieClip (CI only) =='
 $asFiles = Get-ChildItem -Path (Join-Path $Root 'CORE_KernelLogic\src') -Filter '*.as' -Recurse
 $patched = 0
