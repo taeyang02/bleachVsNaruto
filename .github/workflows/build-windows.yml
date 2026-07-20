@@ -172,6 +172,13 @@ jobs:
             throw 'TagAssets overlay failed: shared/assets/assets/config missing'
           }
 
+      - name: Ensure 7-Zip for packaging
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'C:\Program Files\7-Zip\7z.exe')) {
+            choco install 7zip -y --no-progress
+          }
+
       - name: Build playable Windows package
         shell: pwsh
         run: |
@@ -180,9 +187,9 @@ jobs:
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
+          # Single zip only — do NOT upload uncompressed dist/ or launch.swf (doubles size)
           name: bleachvsnaruto-windows-${{ github.sha }}
-          path: |
-            dist/**
-            out/production/SHELL_Pc/launch.swf
+          path: dist/BleachVsNaruto-windows.zip
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0

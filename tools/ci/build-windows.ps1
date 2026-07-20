@@ -195,8 +195,21 @@ try {
 
         $zip = Join-Path $dist 'BleachVsNaruto-windows.zip'
         if (Test-Path $zip) { Remove-Item $zip -Force }
-        Compress-Archive -Path (Join-Path $bundleDir '*') -DestinationPath $zip -Force
-        Write-Host "OK: $bundleDir"
+
+        # Prefer 7-Zip (better ratio than Compress-Archive); fall back if missing
+        $sevenZip = 'C:\Program Files\7-Zip\7z.exe'
+        if (Test-Path $sevenZip) {
+            Write-Host '== Compress with 7-Zip (-mx=9) =='
+            & $sevenZip a -tzip -mx=9 $zip (Join-Path $bundleDir '*')
+            if ($LASTEXITCODE -ne 0) { throw "7z compress failed ($LASTEXITCODE)" }
+        }
+        else {
+            Write-Host '== Compress with Compress-Archive =='
+            Compress-Archive -Path (Join-Path $bundleDir '*') -DestinationPath $zip -Force
+        }
+
+        # Drop uncompressed folder so artifacts/upload only ship the zip (much smaller download)
+        Remove-Item $bundleDir -Recurse -Force
         Write-Host "OK: $zip"
         Write-Host 'Play: unzip BleachVsNaruto-windows.zip then run launch.exe'
     }
