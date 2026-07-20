@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       tag_assets:
-        description: 'BleachVsNaruto_TagAssets tag (must match game binary assets)'
+        description: 'BleachVsNaruto_TagAssets tag (binary assets)'
         required: true
         default: '3.7.0.0.12212024_alpha'
       package_target:
-        description: 'bundle = captive EXE folder+zip | air = .air | swf = compile only'
+        description: 'bundle = playable Windows zip | air = .air installer | swf = compile only'
         required: true
         default: 'bundle'
         type: choice
@@ -17,16 +17,7 @@ on:
           - air
           - swf
   push:
-    branches: [build-windows]
-    paths:
-      - 'SHELL_Pc/**'
-      - 'CORE_*/**'
-      - 'LIB_KyoLib/**'
-      - 'shared/**'
-      - 'tools/ci/**'
-      - '.github/workflows/build-windows.yml'
-  pull_request:
-    branches: [main, master]
+    branches: [main, master, build-windows]
     paths:
       - 'SHELL_Pc/**'
       - 'CORE_*/**'
@@ -57,45 +48,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: false
+          submodules: recursive
           fetch-depth: 1
-
-      - name: Init submodules
-        shell: pwsh
-        run: |
-          Write-Host "Initializing submodules..."
-          git submodule sync --recursive
-          git submodule update --init --recursive --force
-          
-          # Kiểm tra submodules
-          Write-Host "`nSubmodule status:"
-          git submodule status
-          
-          # Kiểm tra các file cần thiết
-          Write-Host "`nChecking required files..."
-          $requiredFiles = @(
-            "LIB_KyoLib\asconfig.json",
-            "CORE_Common\asconfig.json",
-            "CORE_AutoGen\asconfig.json"
-          )
-          
-          $allExist = $true
-          foreach ($file in $requiredFiles) {
-            if (Test-Path $file) {
-              Write-Host "✅ Found: $file"
-            } else {
-              Write-Host "❌ Missing: $file"
-              $allExist = $false
-            }
-          }
-          
-          if (-not $allExist) {
-            Write-Host "`nDirectory structure:"
-            Get-ChildItem -Directory | ForEach-Object { Write-Host "  📁 $($_.Name)" }
-            throw "Some required files are missing. Submodule init failed."
-          }
-          
-          Write-Host "`n✅ All submodules initialized successfully"
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -103,10 +57,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install asconfigc
         run: npm install -g asconfigc
@@ -115,71 +69,97 @@ jobs:
         id: cache-flex
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/${{ env.FLEX_SDK_NAME }}
-          key: flex-sdk-${{ env.FLEX_SDK_NAME }}-win
+          path: ${{ runner.temp }}/flex-sdk
+          key: flex-sdk-${{ env.FLEX_SDK_NAME }}-win-v2
 
       - name: Download & extract Flex/AIR SDK
         if: steps.cache-flex.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $dest = Join-Path $env:RUNNER_TEMP $env:FLEX_SDK_NAME
+          $ErrorActionPreference = 'Stop'
+          $flexRoot = Join-Path $env:RUNNER_TEMP 'flex-sdk'
+          $extractDir = Join-Path $env:RUNNER_TEMP 'flex-sdk-extract'
           $rar = Join-Path $env:RUNNER_TEMP "$($env:FLEX_SDK_NAME).rar"
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+
+          if (Test-Path $flexRoot) { Remove-Item $flexRoot -Recurse -Force }
+          if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+
           Write-Host "Downloading Flex SDK..."
           Invoke-WebRequest -Uri $env:FLEX_SDK_URL -OutFile $rar
+
           choco install 7zip -y --no-progress
-          & "C:\Program Files\7-Zip\7z.exe" x $rar "-o$dest" -y
-          
-          # Tìm thư mục lồng chứa bin\adt.bat
-          $nested = Get-ChildItem $dest -Directory | Where-Object { 
-              Test-Path (Join-Path $_.FullName 'bin\adt.bat') 
-          } | Select-Object -First 1
-          
-          if ($nested) {
-              Write-Host "Found nested SDK folder: $($nested.FullName)"
-              # Di chuyển toàn bộ nội dung từ thư mục lồng lên
-              Get-ChildItem $nested.FullName | Move-Item -Destination $dest -Force
-              Remove-Item $nested.FullName -Force
+          & "C:\Program Files\7-Zip\7z.exe" x $rar "-o$extractDir" -y
+          if ($LASTEXITCODE -ne 0) { throw "7z extract failed: $LASTEXITCODE" }
+
+          # Find real SDK root (folder that contains bin\adt.bat)
+          $adt = Get-ChildItem -Path $extractDir -Recurse -Filter 'adt.bat' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Directory.Name -eq 'bin' } |
+            Select-Object -First 1
+          if (-not $adt) {
+            Get-ChildItem $extractDir | Format-Table Name
+            throw 'adt.bat not found after Flex SDK extract'
           }
-          
-          # Xác minh adt.bat tồn tại
-          if (-not (Test-Path (Join-Path $dest 'bin\adt.bat'))) {
-              Get-ChildItem $dest -Recurse -Filter adt.bat | Select-Object -First 5 FullName
-              throw 'adt.bat not found after extract'
+          $sdkHome = $adt.Directory.Parent.FullName
+          Write-Host "Detected SDK at: $sdkHome"
+
+          New-Item -ItemType Directory -Force -Path $flexRoot | Out-Null
+          Copy-Item -Path (Join-Path $sdkHome '*') -Destination $flexRoot -Recurse -Force
+
+          if (-not (Test-Path (Join-Path $flexRoot 'bin\adt.bat'))) {
+            throw "FLEX_HOME incomplete: $flexRoot"
           }
-          
-          Write-Host "✅ Flex SDK extracted successfully"
+          Write-Host "Flex SDK ready: $flexRoot"
 
       - name: Set FLEX_HOME
         shell: pwsh
         run: |
-          $flex = Join-Path $env:RUNNER_TEMP $env:FLEX_SDK_NAME
+          $flex = Join-Path $env:RUNNER_TEMP 'flex-sdk'
           if (-not (Test-Path (Join-Path $flex 'bin\adt.bat'))) {
-            $found = Get-ChildItem $flex -Recurse -Filter adt.bat | Select-Object -First 1
-            if (-not $found) { throw 'FLEX_HOME invalid' }
-            $flex = $found.Directory.Parent.FullName
+            throw "FLEX_HOME missing adt.bat: $flex"
           }
-          echo "FLEX_HOME=$flex" >> $env:GITHUB_ENV
+          "FLEX_HOME=$flex" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "FLEX_HOME=$flex"
+
+      - name: Verify LIB_KyoLib submodule
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'LIB_KyoLib\asconfig.json')) {
+            Write-Host 'LIB_KyoLib empty, trying submodule init...'
+            git submodule update --init --recursive LIB_KyoLib
+          }
+          if (-not (Test-Path 'LIB_KyoLib\asconfig.json')) {
+            throw 'LIB_KyoLib submodule missing. Ensure .gitmodules points to https://github.com/5DPLAY-Game-Studio/LIB_KyoLib.git'
+          }
+          Write-Host 'LIB_KyoLib OK'
 
       - name: Fetch TagAssets and overlay shared/
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $tag = $env:TAG_ASSETS
           $zip = Join-Path $env:RUNNER_TEMP "TagAssets-$tag.zip"
           $url = "https://github.com/$($env:TAG_ASSETS_REPO)/archive/refs/tags/$tag.zip"
           Write-Host "Downloading TagAssets $tag ..."
           Invoke-WebRequest -Uri $url -OutFile $zip
+
           $extract = Join-Path $env:RUNNER_TEMP "TagAssets-$tag"
           if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
           Expand-Archive -Path $zip -DestinationPath $extract -Force
+
           $inner = Get-ChildItem $extract -Directory | Select-Object -First 1
           $srcShared = Join-Path $inner.FullName 'shared'
-          if (-not (Test-Path $srcShared)) { throw "TagAssets missing shared/ ($tag)" }
+          if (-not (Test-Path $srcShared)) {
+            throw "TagAssets missing shared/ (tag=$tag)"
+          }
           Write-Host "Overlay $srcShared -> ./shared"
           Copy-Item -Path (Join-Path $srcShared '*') -Destination 'shared' -Recurse -Force
 
-      - name: Build SHELL_Pc
+          if (-not (Test-Path 'shared\assets\assets\config')) {
+            throw 'TagAssets overlay failed: shared/assets/assets/config missing'
+          }
+
+      - name: Build playable Windows package
         shell: pwsh
         run: |
           ./tools/ci/build-windows.ps1 -PackageTarget $env:PACKAGE_TARGET -KeystorePass $env:KEYSTORE_PASS

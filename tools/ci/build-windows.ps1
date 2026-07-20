@@ -146,11 +146,20 @@ try {
             -C (Join-Path $Root 'SHELL_Pc\lib\icon') icon
         if ($LASTEXITCODE -ne 0) { throw "adt bundle package failed ($LASTEXITCODE)" }
 
+        # Keep online config next to the EXE for playable builds
+        $onlineSrc = Join-Path $Root 'ONLINE_RelayServer\online.json.example'
+        $cfgDir = Join-Path $bundleDir 'config'
+        if (Test-Path $onlineSrc) {
+            New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
+            Copy-Item $onlineSrc (Join-Path $cfgDir 'online.json') -Force
+        }
+
         $zip = Join-Path $dist 'BleachVsNaruto-windows.zip'
         if (Test-Path $zip) { Remove-Item $zip -Force }
         Compress-Archive -Path (Join-Path $bundleDir '*') -DestinationPath $zip -Force
         Write-Host "OK: $bundleDir"
         Write-Host "OK: $zip"
+        Write-Host 'Play: unzip BleachVsNaruto-windows.zip then run launch.exe'
     }
 }
 finally {
