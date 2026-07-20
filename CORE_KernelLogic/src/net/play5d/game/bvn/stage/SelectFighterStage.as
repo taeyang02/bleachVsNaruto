@@ -27,6 +27,9 @@ import flash.events.Event;
 import flash.events.MouseEvent;
 import flash.events.TouchEvent;
 import flash.geom.Point;
+import flash.text.TextField;
+import flash.text.TextFieldAutoSize;
+import flash.text.TextFormat;
 import flash.utils.Dictionary;
 import flash.utils.setTimeout;
 
@@ -98,6 +101,13 @@ public class SelectFighterStage implements IStage {
     private var _twoPlayerSelectFin:Boolean;  //解决两玩家同时选人
     /** Draft turn: 1 = P1 picks next, 2 = P2 picks next */
     private var _draftTurn:int = 1;
+    /** Per-side draft pick time bank (seconds); only ticks on that side's turn */
+    private static const DRAFT_TURN_SECONDS:int = 30;
+    private var _p1DraftTime:int               = DRAFT_TURN_SECONDS;
+    private var _p2DraftTime:int               = DRAFT_TURN_SECONDS;
+    private var _draftTimerAcc:Number          = 0;
+    private var _draftTimerTF:TextField;
+    private var _draftAutoPicking:Boolean      = false;
     [Embed(source='/../assets/cancel.png')]
     private var _backMenuPicClass:Class;
     private var _backMenuBtn:Sprite;
@@ -453,6 +463,9 @@ public class SelectFighterStage implements IStage {
     }
 
     private function clear():void {
+        hideDraftTimer();
+        _draftAutoPicking = false;
+
         if (_itemObj) {
             for each(var i:SelectFighterItem in _itemObj) {
                 i.removeEventListener(MouseEvent.MOUSE_OVER, selectFighterMouseHandler);
@@ -720,7 +733,9 @@ public class SelectFighterStage implements IStage {
 
             if (DRAFT_MODE) {
                 // MOBA-style: both bars visible; only current turn + local side can pick
+                resetDraftTimers();
                 applyDraftTurnInput();
+                showDraftTimer();
             }
             else if (ONLY_INPUT_PLAYER == 1 && _p2Slt) {
                 _p2Slt.enabled = false;
@@ -749,6 +764,165 @@ public class SelectFighterStage implements IStage {
             var p2Turn:Boolean = _draftTurn == 2 && !_p2Slt.selectFinish();
             _p2Slt.enabled     = p2Turn && (local == 0 || local == 2);
         }
+        _draftAutoPicking = false;
+        updateDraftTimerUI();
+    }
+
+    private function resetDraftTimers():void {
+        _p1DraftTime      = DRAFT_TURN_SECONDS;
+        _p2DraftTime      = DRAFT_TURN_SECONDS;
+        _draftTimerAcc    = 0;
+        _draftAutoPicking = false;
+    }
+
+    private function showDraftTimer():void {
+        if (!_ui) {
+            return;
+        }
+        if (!_draftTimerTF) {
+            _draftTimerTF                   = new TextField();
+            _draftTimerTF.mouseEnabled      = false;
+            _draftTimerTF.selectable        = false;
+            _draftTimerTF.autoSize          = TextFieldAutoSize.CENTER;
+            _draftTimerTF.defaultTextFormat = new TextFormat('Arial', 18, 0xFFFFFF, true);
+        }
+        if (!_draftTimerTF.parent) {
+            _ui.addChild(_draftTimerTF);
+        }
+        _draftTimerTF.x = GameConfig.GAME_SIZE.x / 2;
+        _draftTimerTF.y = 8;
+        updateDraftTimerUI();
+    }
+
+    private function hideDraftTimer():void {
+        if (_draftTimerTF && _draftTimerTF.parent) {
+            try {
+                _draftTimerTF.parent.removeChild(_draftTimerTF);
+            }
+            catch (e:Error) {
+            }
+        }
+    }
+
+    private function updateDraftTimerUI():void {
+        if (!_draftTimerTF || !DRAFT_MODE) {
+            return;
+        }
+        var turnLabel:String = _draftTurn == 1 ? 'P1' : 'P2';
+        var warn:Boolean     = (
+                                       _draftTurn == 1 && _p1DraftTime <= 5
+                               ) || (
+                                       _draftTurn == 2 && _p2DraftTime <= 5
+                               );
+        _draftTimerTF.defaultTextFormat = new TextFormat(
+                'Arial', 18, warn ? 0xFF4444 : 0xFFFFFF, true
+        );
+        _draftTimerTF.text = 'P1 ' + _p1DraftTime + 's  |  P2 ' + _p2DraftTime + 's  [' + turnLabel + ']';
+        _draftTimerTF.x    = GameConfig.GAME_SIZE.x / 2 - _draftTimerTF.width / 2;
+    }
+
+    private function renderDraftTimer():void {
+        if (!DRAFT_MODE || !GameMode.isVsPeople()) {
+            return;
+        }
+        if (_selectState == SELECT_STATE_MAP) {
+            hideDraftTimer();
+            return;
+        }
+        if (!_p1Slt || !_p2Slt) {
+            return;
+        }
+        if (_p1Slt.selectFinish() && _p2Slt.selectFinish()) {
+            hideDraftTimer();
+            return;
+        }
+        if (!_draftTimerTF || !_draftTimerTF.parent) {
+            showDraftTimer();
+        }
+
+        _draftTimerAcc += 1 / GameConfig.FPS_UI;
+        if (_draftTimerAcc < 1) {
+            return;
+        }
+        _draftTimerAcc = 0;
+
+        if (_draftTurn == 1 && _p1Slt && !_p1Slt.selectFinish()) {
+            if (_p1DraftTime > 0) {
+                _p1DraftTime--;
+            }
+            if (_p1DraftTime <= 0) {
+                tryAutoDraftPick(1);
+            }
+        }
+        else if (_draftTurn == 2 && _p2Slt && !_p2Slt.selectFinish()) {
+            if (_p2DraftTime > 0) {
+                _p2DraftTime--;
+            }
+            if (_p2DraftTime <= 0) {
+                tryAutoDraftPick(2);
+            }
+        }
+        updateDraftTimerUI();
+    }
+
+    /**
+     * Timeout: local side whose turn it is auto-picks a random fighter.
+     */
+    private function tryAutoDraftPick(player:int):void {
+        if (_draftAutoPicking) {
+            return;
+        }
+        var local:int = ONLY_INPUT_PLAYER;
+        if (local != 0 && local != player) {
+            return;
+        }
+        var slt:SelecterItemUI = player == 1 ? _p1Slt : _p2Slt;
+        if (!slt || !slt.enabled || slt.selectFinish()) {
+            return;
+        }
+        _draftAutoPicking = true;
+        doRandomDraftPick(slt);
+    }
+
+    private function doRandomDraftPick(slt:SelecterItemUI):void {
+        var candidates:Array = [];
+        for each (var sf:SelectFighterItem in _itemObj) {
+            if (!sf || !sf.fighterData || !sf.selectData) {
+                continue;
+            }
+            if (sf.fighterData.id.indexOf('random') != -1) {
+                continue;
+            }
+            if (checkSelected(slt, sf)) {
+                continue;
+            }
+            if (_selectState == SELECT_STATE_FIGHTER && !GameLogic.canSelectFighter(sf.fighterData.id)) {
+                continue;
+            }
+            if (_selectState == SELECT_STATE_ASSIST && !GameLogic.canSelectAssist(sf.fighterData.id)) {
+                continue;
+            }
+            candidates.push(sf);
+        }
+        if (candidates.length < 1) {
+            _draftAutoPicking = false;
+            return;
+        }
+        var pick:SelectFighterItem = KyoRandom.getRandomInArray(candidates, false);
+        moveToSelectFighter(slt, pick);
+        if (slt.randoms && slt.randoms.length > 0) {
+            slt.currentFighter = KyoRandom.getRandomInArray(slt.randoms, false);
+            if (slt.group) {
+                slt.group.updateFighter(slt.currentFighter);
+            }
+            slt.randoms = null;
+        }
+        if (!slt.currentFighter) {
+            _draftAutoPicking = false;
+            return;
+        }
+        slt.select(playerSeltBack);
+        SoundCtrl.I.sndConfrim();
     }
 
     private function initSelecterP1():void {
@@ -1206,6 +1380,8 @@ public class SelectFighterStage implements IStage {
         if (GameUI.showingDialog()) {
             return;
         }
+
+        renderDraftTimer();
 
         var type:String;
 

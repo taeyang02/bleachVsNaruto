@@ -104,6 +104,13 @@ public class SelectedFighterUI extends EventDispatcher {
             ui.removeEventListener(TouchEvent.TOUCH_TAP, mouseHandler);
             ui.removeEventListener(MouseEvent.MOUSE_OVER, mouseHandler);
             ui.removeEventListener(MouseEvent.CLICK, mouseHandler);
+            if (ui.parent) {
+                try {
+                    ui.parent.removeChild(ui);
+                }
+                catch (e:Error) {
+                }
+            }
         }
         if (_text) {
             _text.destory();

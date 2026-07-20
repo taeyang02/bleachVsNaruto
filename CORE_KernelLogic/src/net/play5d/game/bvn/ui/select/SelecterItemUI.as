@@ -95,9 +95,16 @@ public class SelecterItemUI {
             selectVO.fighter2 = v[1];
             selectVO.fighter3 = v[2];
 
+            // Fill current preview, then stack without duplicating / empty templates
             group.updateFighter(FighterModel.I.getFighter(selectVO.fighter1));
-            group.addFighter(FighterModel.I.getFighter(selectVO.fighter2));
-            group.addFighter(FighterModel.I.getFighter(selectVO.fighter3));
+            if (selectVO.fighter2) {
+                group.addFighter(null);
+                group.updateFighter(FighterModel.I.getFighter(selectVO.fighter2));
+            }
+            if (selectVO.fighter3) {
+                group.addFighter(null);
+                group.updateFighter(FighterModel.I.getFighter(selectVO.fighter3));
+            }
 
         }
 
@@ -136,8 +143,8 @@ public class SelecterItemUI {
         }
 
         while (selectTimes < count) {
-            var id:String     = v[selectTimes];
-            var fv:FighterVO  = FighterModel.I.getFighter(id);
+            var id:String    = v[selectTimes];
+            var fv:FighterVO = FighterModel.I.getFighter(id);
             switch (selectTimes) {
             case 0:
                 selectVO.fighter1 = id;
@@ -150,11 +157,10 @@ public class SelecterItemUI {
                 break;
             }
             selectTimes++;
+            // Put face on current slot, open empty next only if more picks remain
+            group.updateFighter(fv);
             if (!selectFinish()) {
-                group.addFighter(fv);
-            }
-            else {
-                group.updateFighter(fv);
+                group.addFighter(null);
             }
         }
         enabled = !selectFinish();
@@ -230,8 +236,13 @@ public class SelecterItemUI {
 
         selectTimes++;
 
-        if (!selectFinish()) {
-            group.addFighter(currentFighter);
+        // Confirm into current preview slot (already may show face from hover),
+        // then open an empty next slot — never push a duplicate "template" behind.
+        if (group) {
+            group.updateFighter(currentFighter);
+            if (!selectFinish()) {
+                group.addFighter(null);
+            }
         }
 
         enabled = false;
