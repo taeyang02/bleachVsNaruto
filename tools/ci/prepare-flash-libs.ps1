@@ -193,7 +193,7 @@ foreach ($f in $asFiles) {
             param($m)
             $v = $m.Groups[1].Value
             $c = $m.Groups[3].Value
-            "(flash.utils.getQualifiedClassName($v).indexOf('$c') >= 0 || flash.utils.getQualifiedClassName($v).indexOf('selected_item_p1') >= 0)"
+            "(getQualifiedClassName($v).indexOf('$c') >= 0 || getQualifiedClassName($v).indexOf('selected_item_p1') >= 0)"
         }
     )
 
@@ -222,6 +222,16 @@ foreach ($f in $asFiles) {
                     1
                 )
             }
+        }
+
+        # Ensure getQualifiedClassName import when used
+        if ($text -match '\bgetQualifiedClassName\s*\(' -and $text -notmatch 'import flash\.utils\.getQualifiedClassName') {
+            $text = [regex]::Replace(
+                $text,
+                '(package\s+[^\r\n]+\{)\r?\n',
+                "`$1`r`nimport flash.utils.getQualifiedClassName;`r`n",
+                1
+            )
         }
 
         # Ensure ResUtils import if we rewrote Class/new usages
