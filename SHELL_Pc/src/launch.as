@@ -66,9 +66,9 @@ public class launch extends Sprite {
         _mainGame = new MainGame();
         //_mainGame.initlize(this , stage , initBackHandler , initFailHandler);
         _mainGame.initlize(this, stage, function ():void {
-            GameLogger.log('ResUtils UI SWFs ready -> goLanguage');
+            GameLogger.log('ResUtils UI SWFs ready -> applyLanguageAuto (skip select UI)');
             _mainGame.goLanguage(function ():void {
-                GameLogger.log('language selected, font=' + FONT.fontName);
+                GameLogger.log('language applied, font=' + FONT.fontName);
                 trace('字体名称：' + FONT.fontName);
                 UIUtils.LOCK_FONT = FONT.fontName;
 

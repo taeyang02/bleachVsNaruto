@@ -39,6 +39,71 @@ import net.play5d.kyo.stage.IStage;
 public class LanguageStage implements IStage {
     include '../../../../../../include/_INCLUDE_.as';
 
+    /**
+     * Skip language select UI: load font + lang JSON for saved/default locale, then callback.
+     * @param back success callback
+     * @param fail fail callback
+     */
+    public static function applyLanguageAuto(back:Function = null, fail:Function = null):void {
+        AssetManager.I.loadJSON('config/language.json', onConfigOk, onConfigFail);
+
+        function onConfigFail():void {
+            if (fail != null) {
+                fail();
+            }
+        }
+
+        function onConfigOk(data:Object):void {
+            var lang:String     = GameData.I.config.language;
+            var fontDir:String  = data['font_dir'];
+            var languagesObj:Array = data['languages'];
+            var fontFile:String = null;
+
+            if (!LanguageType.isSupported(lang)) {
+                lang = LanguageType.ENGLISH;
+            }
+
+            for each (var langObj:Object in languagesObj) {
+                if (langObj && langObj[lang]) {
+                    fontFile = langObj[lang];
+                    break;
+                }
+            }
+
+            // Fallback to English font mapping if missing
+            if (!fontFile) {
+                lang = LanguageType.ENGLISH;
+                for each (var langObj2:Object in languagesObj) {
+                    if (langObj2 && langObj2[lang]) {
+                        fontFile = langObj2[lang];
+                        break;
+                    }
+                }
+            }
+
+            if (!fontFile) {
+                onConfigFail();
+                return;
+            }
+
+            var fontUrl:String = fontDir + fontFile;
+            AssetManager.I.loadSWFs([fontUrl], function ():void {
+                var fontCls:Class = AssetManager.I.getClass('font', fontUrl);
+                if (!fontCls) {
+                    onConfigFail();
+                    return;
+                }
+                Font.registerFont(fontCls);
+
+                GameData.I.config.language = lang;
+                LANGUAGE                   = lang;
+                FONT                       = new fontCls() as Font;
+
+                MultiLangUtils.I.initialize(lang, back, onConfigFail);
+            });
+        }
+    }
+
     // 加载进度条
     private var _loadingBar:$language$MC_loadingBar;
     // 显示对象

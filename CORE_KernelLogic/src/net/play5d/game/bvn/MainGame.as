@@ -359,15 +359,13 @@ public class MainGame {
 
     /**
      * 前往【语言选择】场景
-     * @param clickCallBack 点击回调事件
+     * <p>当前版本跳过选择界面，自动应用存档/默认语言后继续启动。</p>
+     * @param clickCallBack 语言初始化完成后的回调
      */
     public function goLanguage(clickCallBack:Function = null):void {
-        var languageStage:LanguageStage = new LanguageStage();
-        languageStage.clickCallBack     = clickCallBack;
-        stageCtrl.goStage(languageStage);
-
         setFPS(GameConfig.FPS_UI);
         setQuality(GameConfig.QUALITY_UI);
+        LanguageStage.applyLanguageAuto(clickCallBack);
     }
 
     private function resetDefault():void {
