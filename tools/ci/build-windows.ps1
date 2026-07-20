@@ -70,6 +70,7 @@ if ((Test-Path $onlineSrc) -and -not (Test-Path $onlineDst)) {
 }
 
 $outDirs = @(
+    'out\production\LIB_Other',
     'out\production\CORE_Shared',
     'out\production\LIB_KyoLib',
     'out\production\CORE_KernelLogic',
@@ -81,7 +82,9 @@ foreach ($d in $outDirs) {
     New-Item -ItemType Directory -Force -Path (Join-Path $Root $d) | Out-Null
 }
 
+# LIB_KyoLib includes LIB_Other.swc — compile Other first.
 $projects = @(
+    'LIB_Other\asconfig.json',
     'CORE_Shared\asconfig.json',
     'LIB_KyoLib\asconfig.json',
     'CORE_KernelLogic\asconfig.json',
