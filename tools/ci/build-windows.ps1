@@ -58,6 +58,32 @@ if ($LASTEXITCODE -ne 0) {
     throw "prepare-flash-libs failed ($LASTEXITCODE)"
 }
 
+# GithubUtils.as Embeds .git/refs/heads/{master,develop}. CI often builds
+# another branch with shallow clone, so those files are missing.
+Write-Host '== Ensure git refs for GithubUtils Embed =='
+$gitRefs = Join-Path $Root '.git\refs\heads'
+New-Item -ItemType Directory -Force -Path $gitRefs | Out-Null
+$headSha = $null
+try {
+    $headSha = (git -C $Root rev-parse HEAD 2>$null | Out-String).Trim()
+}
+catch {
+}
+if (-not $headSha -or $headSha.Length -lt 7) {
+    $headSha = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { '0000000000000000000000000000000000000000' }
+}
+foreach ($branch in @('master', 'develop')) {
+    $refPath = Join-Path $gitRefs $branch
+    if (-not (Test-Path $refPath)) {
+        # Embed expects a plain SHA file (with trailing newline like real git refs)
+        [System.IO.File]::WriteAllText($refPath, ($headSha + "`n"))
+        Write-Host "Created stub ref: refs/heads/$branch -> $headSha"
+    }
+    else {
+        Write-Host "Keep existing ref: refs/heads/$branch"
+    }
+}
+
 Write-Host '== Sync assets -> shared/_tmp/pc =='
 $srcAssets = Join-Path $Root 'shared\assets\assets'
 $dstPc = Join-Path $Root 'shared\_tmp\pc\assets'
