@@ -88,6 +88,20 @@ public class LANRoomState implements IStage {
         initUI();
     }
 
+    /**
+     * Refresh displayed online room code after re-CREATE on the relay.
+     */
+    public function updateRoomCodeDisplay():void {
+        if (!_ui || !_host) {
+            return;
+        }
+        _host = LANServerCtrl.I.host || _host;
+        if (LANGameCtrl.I.isOnline && _host.roomCode) {
+            _ui.txt_pass.text = 'Code: ' + _host.roomCode;
+            pushChart('New room code: ' + _host.roomCode + ' (share with friend to join)');
+        }
+    }
+
     public function clientMode(host:HostVO):void {
         LANClientCtrl.I.setRoom(this);
         addPlayer('self', LanGameModel.I.playerName);

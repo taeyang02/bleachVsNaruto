@@ -122,9 +122,8 @@ public class LANServerCtrl {
     }
 
     public function startOnlineServer(host:HostVO):void {
-        _host           = host;
-        _clients        = new Vector.<ClientVO>();
-        _onlineClosing  = false;
+        _host    = host;
+        _clients = new Vector.<ClientVO>();
 
         var relay:OnlineRelayClient = OnlineRelayClient.I;
         relay.onGameTcp  = tcpDataHandler;
@@ -133,11 +132,13 @@ public class LANServerCtrl {
 
         relay.connect(function ():void {
             relay.createRoom(host, function (data:Object):void {
-                _host.roomCode = data.roomCode;
+                _host.roomCode  = data.roomCode;
+                _onlineClosing  = false;
                 if (onOnlineRoomCreated != null) {
                     onOnlineRoomCreated(data.roomCode);
                 }
             }, function (msg:String):void {
+                _onlineClosing = false;
                 if (onOnlineRoomFailed != null) {
                     onOnlineRoomFailed(msg);
                 }
@@ -146,6 +147,7 @@ public class LANServerCtrl {
                 }
             });
         }, function (err:String):void {
+            _onlineClosing = false;
             if (onOnlineRoomFailed != null) {
                 onOnlineRoomFailed(err);
             }
@@ -157,7 +159,8 @@ public class LANServerCtrl {
 
     public function stopServer():void {
         stopPing();
-        _host = null;
+        _onlineClosing = false;
+        _host          = null;
         if (LANGameCtrl.I.isOnline) {
             var relay:OnlineRelayClient = OnlineRelayClient.I;
             relay.onGameTcp  = null;
@@ -237,7 +240,13 @@ public class LANServerCtrl {
             _kickTimeoutInt = 0;
 
             if (LANGameCtrl.I.isOnline) {
-                OnlineRelayClient.I.close();
+                // Do NOT close host relay — that destroys the room for everyone.
+                // Guest disconnect triggers PEER_LEFT → recreateOnlineRoom.
+                // If guest never left, force recreate so room is joinable again.
+                clearOnlineClientsFromRoom();
+                if (!OnlineRelayClient.I.isConnected && !_onlineClosing && _host) {
+                    recreateOnlineRoom('Player kicked — creating new room...');
+                }
                 return;
             }
 
@@ -408,20 +417,86 @@ public class LANServerCtrl {
             return;
         }
         _onlineClosing = true;
-        if (active) {
+
+        var wasInGame:Boolean = active;
+        if (wasInGame) {
+            // Back to local lobby UI (does not recreate relay room by itself)
             gameEnd();
-            GameUI.alert('PLAYER EXIT', 'Player left the room');
-            return;
         }
-        if (_clients.length > 0) {
-            var cv:ClientVO = _clients[0];
+        else {
+            clearOnlineClientsFromRoom();
             if (_room) {
-                _room.removePlayer(cv.ip);
-                _room.pushChart((cv.name || 'Player') + ' left the room');
+                _room.pushChart('Player left the room');
                 _room.setStartAble(false);
             }
-            _clients.length = 0;
         }
+
+        // Relay destroys the room on any peer disconnect — host must CREATE again
+        // or the room code is dead and nobody can join/search it.
+        recreateOnlineRoom(wasInGame ? 'Player left the match.' : 'Player left the room.');
+    }
+
+    private function clearOnlineClientsFromRoom():void {
+        if (!_clients || _clients.length < 1) {
+            return;
+        }
+        for each (var cv:ClientVO in _clients) {
+            if (!_room || !cv) {
+                continue;
+            }
+            if (cv.id) {
+                _room.removePlayer(cv.id);
+            }
+            if (cv.ip) {
+                _room.removePlayer(cv.ip);
+            }
+        }
+        _clients.length = 0;
+    }
+
+    /**
+     * Re-register on relay after peer left / kicked so a new room code is joinable.
+     */
+    private function recreateOnlineRoom(reasonMsg:String = null):void {
+        if (!LANGameCtrl.I.isOnline || !_host) {
+            _onlineClosing = false;
+            return;
+        }
+
+        var host:HostVO = _host;
+
+        // Ensure host lobby is visible
+        if (!_room) {
+            var room:LANRoomState = new LANRoomState();
+            MainGame.stageCtrl.goStage(room);
+            room.hostMode();
+        }
+        else {
+            _room.setStartAble(false);
+            if (reasonMsg) {
+                _room.pushChart(reasonMsg);
+            }
+            _room.pushChart('Re-creating room on server...');
+        }
+
+        onOnlineRoomCreated = function (code:String):void {
+            onOnlineRoomCreated = null;
+            onOnlineRoomFailed  = null;
+            if (_room) {
+                _room.updateRoomCodeDisplay();
+                _room.setStartAble(false);
+            }
+            var tip:String = (reasonMsg ? reasonMsg + '\n' : '') + 'New room code: ' + code +
+                             '\nShare this code to join again';
+            GameUI.alert('ROOM CODE', tip);
+        };
+        onOnlineRoomFailed = function (msg:String):void {
+            onOnlineRoomCreated = null;
+            onOnlineRoomFailed  = null;
+            GameUI.alert('ERROR', msg || 'Failed to recreate room');
+        };
+
+        startOnlineServer(host);
     }
 
     private function udpDataHandler(d:UDPDataVO):void {
