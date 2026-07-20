@@ -678,12 +678,14 @@ public class SelectFighterStage implements IStage {
         if (GameMode.isVsPeople()) {
             initSelecterP1();
             initSelecterP2();
-            // Online/LAN: each machine only controls its own cursor
+            // Online/LAN: each machine only controls its own cursor (parallel pick)
             if (ONLY_INPUT_PLAYER == 1 && _p2Slt) {
                 _p2Slt.enabled = false;
+                _p2Slt.removeSelecter();
             }
             else if (ONLY_INPUT_PLAYER == 2 && _p1Slt) {
                 _p1Slt.enabled = false;
+                _p1Slt.removeSelecter();
             }
             _twoPlayerSelectFin = false;
         }
@@ -1246,6 +1248,8 @@ public class SelectFighterStage implements IStage {
                 if (otherSlt && otherSlt.selectFinish() && !_twoPlayerSelectFin) {
                     _twoPlayerSelectFin = true;
                     if (!AUTO_FINISH) {
+                        // Wait for host NEXT_STEP; still clear local cursor
+                        selt.destory();
                         return;
                     }
                     nextStep();
@@ -1289,9 +1293,15 @@ public class SelectFighterStage implements IStage {
         TweenLite.to(_mapSelectUI, 0.3, {
             x: oldX, y: oldY, scaleX: 1, scaleY: 1, ease: Back.easeOut, onComplete: function ():void {
                 if (_mapSelectUI) {
-                    _mapSelectUI.addMouseEvents(mapPrevHandler, mapNextHandler, mapConfrimHandler);
-                    _mapSelectUI.inputType = GameInputType.P1;
-                    _mapSelectUI.enabled   = true;
+                    // Guest waits for host FIGHTER_FINISH (includes map); only host picks map
+                    if (ONLY_INPUT_PLAYER != 2) {
+                        _mapSelectUI.addMouseEvents(mapPrevHandler, mapNextHandler, mapConfrimHandler);
+                        _mapSelectUI.inputType = GameInputType.P1;
+                        _mapSelectUI.enabled   = true;
+                    }
+                    else {
+                        _mapSelectUI.enabled = false;
+                    }
                 }
                 GameInputer.enabled = true;
             }

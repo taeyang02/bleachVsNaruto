@@ -25,6 +25,7 @@ import flash.utils.setTimeout;
 import net.play5d.game.bvn.data.GameData;
 import net.play5d.game.bvn.data.GameMode;
 import net.play5d.game.bvn.input.GameInputType;
+import net.play5d.game.bvn.stage.SelectFighterStage;
 import net.play5d.game.bvn.utils.ResUtils;
 
 public class SelectIndexUI extends Sprite {
@@ -129,8 +130,20 @@ public class SelectIndexUI extends Sprite {
             initP2Group(null, true);
             break;
         case GameMode.TEAM_VS_PEOPLE:
-            initP1Group();
-            initP2Group(GameInputType.P2, false);
+            // Online/LAN: host=P1 / guest=P2 pick fight order in parallel (no turn lock)
+            var only:int = SelectFighterStage.ONLY_INPUT_PLAYER;
+            if (only == 1) {
+                initP1Group();
+                initP2GroupRemote();
+            }
+            else if (only == 2) {
+                initP1GroupRemote();
+                initP2Group(GameInputType.P2, false);
+            }
+            else {
+                initP1Group();
+                initP2Group(GameInputType.P2, false);
+            }
             break;
         case GameMode.TEAM_VS_CPU:
         case GameMode.TEAM_WATCH:
@@ -165,6 +178,14 @@ public class SelectIndexUI extends Sprite {
         }
     }
 
+    /**
+     * Remote P1 (guest machine): show roster only; order filled by network setOrder.
+     * No arrow / keys → mouse handlers no-op (require _arrow).
+     */
+    private function initP1GroupRemote():void {
+        _p1Group.onFinish = onSelectFinish;
+    }
+
     private function initP2Group(type:String, autoSelect:Boolean):void {
         var arrow:DisplayObject = ResUtils.I.createDisplayObject(
                 ResUtils.swfLib.select, '$loading$SP_selectArrow2'
@@ -178,6 +199,13 @@ public class SelectIndexUI extends Sprite {
         else {
             _p2Group.setKey(type);
         }
+        _p2Group.onFinish = onSelectFinish;
+    }
+
+    /**
+     * Remote P2 (host machine): show roster only; order filled by network setOrder.
+     */
+    private function initP2GroupRemote():void {
         _p2Group.onFinish = onSelectFinish;
     }
 
