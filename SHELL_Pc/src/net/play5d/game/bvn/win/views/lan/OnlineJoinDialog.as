@@ -161,6 +161,7 @@ public class OnlineJoinDialog implements IStage {
 
         GameUI.alert('CONNECTING', 'Joining room...');
         LANClientCtrl.I.joinOnline(code, function (succ:Boolean, msg:String):void {
+            GameUI.closeAlert();
             if (!succ) {
                 GameUI.alert('ERROR', msg || 'Failed to join room');
                 return;

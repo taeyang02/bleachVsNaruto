@@ -94,10 +94,16 @@ public class MusouConfrimUI extends BaseDialog {
             if (yesBack != null) {
                 yesBack();
             }
+            else {
+                closeSelf();
+            }
             break;
         case _noBtn:
             if (noBack != null) {
                 noBack();
+            }
+            else {
+                closeSelf();
             }
             break;
         }

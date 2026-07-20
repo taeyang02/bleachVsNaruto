@@ -24,26 +24,29 @@ import flash.filesystem.FileStream;
 import net.play5d.game.bvn.interfaces.ILogger;
 
 /**
- * Windows 文件日志。写入 applicationStorageDirectory（可写），
- * 避免 AIR captive 下 applicationDirectory 只读导致静默失败。
+ * Windows file logger.
+ * Prefers <code>log.log</code> next to the .exe (applicationDirectory);
+ * falls back to applicationStorageDirectory if that path is not writable.
  */
 public class Loger implements ILogger {
     private static var _file:File;
+    private static var _resolved:Boolean;
 
     public function Loger() {
     }
 
     /**
-     * 追加一行到 log.log。
+     * Append one line to log.log.
      *
-     * @param v 日志内容
+     * @param v log text
      */
     public function log(v:String):void {
         trace(v);
 
         try {
+            ensureFile();
             if (!_file) {
-                _file = File.applicationStorageDirectory.resolvePath('log.log');
+                return;
             }
             var stream:FileStream = new FileStream();
             stream.open(_file, FileMode.APPEND);
@@ -52,7 +55,40 @@ public class Loger implements ILogger {
         }
         catch (e:Error) {
             trace('Loger.write failed', e);
+            // Retry once with storage fallback
+            try {
+                _file     = File.applicationStorageDirectory.resolvePath('log.log');
+                _resolved = true;
+                var fs:FileStream = new FileStream();
+                fs.open(_file, FileMode.APPEND);
+                fs.writeUTFBytes(v + '\r\n');
+                fs.close();
+            }
+            catch (e2:Error) {
+                trace('Loger.fallback failed', e2);
+            }
         }
+    }
+
+    private function ensureFile():void {
+        if (_resolved) {
+            return;
+        }
+        _resolved = true;
+        // Same folder as the captive .exe
+        try {
+            var besideExe:File = File.applicationDirectory.resolvePath('log.log');
+            var test:FileStream = new FileStream();
+            test.open(besideExe, FileMode.APPEND);
+            test.writeUTFBytes('');
+            test.close();
+            _file = besideExe;
+            return;
+        }
+        catch (e:Error) {
+            trace('Loger: applicationDirectory not writable, using storage');
+        }
+        _file = File.applicationStorageDirectory.resolvePath('log.log');
     }
 
 }

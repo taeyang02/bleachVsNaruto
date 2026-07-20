@@ -28,6 +28,7 @@ import net.play5d.game.bvn.MainGame;
 import net.play5d.game.bvn.ctrler.game_ctrls.GameCtrl;
 import net.play5d.game.bvn.events.GameEvent;
 import net.play5d.game.bvn.fighter.FighterMain;
+import net.play5d.game.bvn.input.GameInputer;
 import net.play5d.game.bvn.interfaces.GameInterface;
 import net.play5d.game.bvn.stage.GameStage;
 import net.play5d.game.bvn.stage.LoadingStage;
@@ -335,6 +336,11 @@ public class LANClientCtrl {
 
         dispose();
 
+        // Restore UI input after mid-select / mid-fight disconnect
+        GameInputer.enabled = true;
+        GameUI.closeAlert();
+        GameUI.closeConfrim();
+
         MainGame.stageCtrl.goStage(new LANGameState());
 
         LanGameMenuCtrl.I.dispose();
@@ -360,14 +366,14 @@ public class LANClientCtrl {
         if (!wait) {
 //				trace("同步异常");
             gameEnd();
-            GameUI.alert("DISCONNECT", "Sync error");
+            GameUI.alert('DISCONNECT', 'Sync error');
             return;
         }
         _syncErrorTimes++;
         if (_syncErrorTimes > 10) {
 //				trace("同步错误，强制退出");
             gameEnd();
-            GameUI.alert("DISCONNECT", "Sync error");
+            GameUI.alert('DISCONNECT', 'Sync error');
 //				dispose();
         }
     }

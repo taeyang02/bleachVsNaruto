@@ -26,6 +26,7 @@ import net.play5d.game.bvn.ctrler.game_ctrls.GameCtrl;
 import net.play5d.game.bvn.data.vos.GameRunDataVO;
 import net.play5d.game.bvn.events.GameEvent;
 import net.play5d.game.bvn.fighter.FighterMain;
+import net.play5d.game.bvn.input.GameInputer;
 import net.play5d.game.bvn.interfaces.GameInterface;
 import net.play5d.game.bvn.stage.GameStage;
 import net.play5d.game.bvn.ui.GameUI;
@@ -275,6 +276,10 @@ public class LANServerCtrl {
         }
 
         disposeSyncEvent();
+
+        GameInputer.enabled = true;
+        GameUI.closeAlert();
+        GameUI.closeConfrim();
 
         var room:LANRoomState = new LANRoomState();
         MainGame.stageCtrl.goStage(room);

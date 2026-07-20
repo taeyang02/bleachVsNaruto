@@ -29,6 +29,7 @@ import net.play5d.game.bvn.ctrler.AssetManager;
 import net.play5d.game.bvn.ctrler.SoundCtrl;
 import net.play5d.game.bvn.data.GameMode;
 import net.play5d.game.bvn.ui.GameUI;
+import net.play5d.game.bvn.utils.GameLogger;
 import net.play5d.game.bvn.win.ctrls.LANClientCtrl;
 import net.play5d.game.bvn.win.ctrls.LANGameCtrl;
 import net.play5d.game.bvn.win.ctrls.LANServerCtrl;
@@ -308,8 +309,8 @@ public class LANRoomState implements IStage {
             }
         }
         catch (err:Error) {
+            GameLogger.log('startTimerHandler ' + e.type + ': ' + err.message + '\n' + err.getStackTrace());
             GameUI.alert('ERROR', 'Start failed: ' + err.message);
-            throw err;
         }
     }
 

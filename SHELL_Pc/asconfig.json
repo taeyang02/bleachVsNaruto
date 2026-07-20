@@ -5,7 +5,7 @@
     "config": "air",
 
     "compilerOptions": {
-        "debug": true,
+        "debug": false,
         "swf-version": 37,
         "advanced-telemetry": true,
         "optimize": true,

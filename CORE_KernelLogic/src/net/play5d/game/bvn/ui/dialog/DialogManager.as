@@ -22,6 +22,7 @@ import com.greensock.TweenLite;
 import flash.display.BitmapData;
 import flash.display.DisplayObject;
 import flash.display.Sprite;
+import flash.events.MouseEvent;
 
 import net.play5d.game.bvn.GameConfig;
 import net.play5d.game.bvn.MainGame;
@@ -73,11 +74,7 @@ public class DialogManager {
             }
 
             if (_showingDialogs.length < 1) {
-                try {
-                    MainGame.I.root.removeChild(_dialogBG);
-                }
-                catch (e:Error) {
-                }
+                removeDialogBg();
             }
             else {
                 var last:BaseDialog = _showingDialogs[_showingDialogs.length - 1];
@@ -93,6 +90,32 @@ public class DialogManager {
 
     }
 
+    /** Close topmost dialog (dimmed BG click). */
+    public static function closeTopDialog():void {
+        if (_showingDialogs.length < 1) {
+            return;
+        }
+        var top:BaseDialog = _showingDialogs[_showingDialogs.length - 1];
+        if (top is AlertUI) {
+            // Alert: BG click = OK / dismiss
+            if (top.yesBack != null) {
+                top.yesBack();
+            }
+            else {
+                closeDialog(top);
+            }
+        }
+        else {
+            // Confirm: BG click = cancel
+            if (top.noBack != null) {
+                top.noBack();
+            }
+            else {
+                closeDialog(top);
+            }
+        }
+    }
+
     private static function addDialogBg():void {
         if (!_dialogBG) {
             var bp:BitmapData = new BitmapData(1, 1, false, 0);
@@ -100,9 +123,26 @@ public class DialogManager {
             _dialogBG.graphics.beginBitmapFill(bp, null, true, false);
             _dialogBG.graphics.drawRect(0, 0, GameConfig.GAME_SIZE.x, GameConfig.GAME_SIZE.y);
             _dialogBG.graphics.endFill();
-            _dialogBG.alpha = 0.7;
+            _dialogBG.alpha      = 0.7;
+            _dialogBG.buttonMode = true;
+            _dialogBG.addEventListener(MouseEvent.CLICK, onDialogBgClick);
         }
         MainGame.I.root.addChild(_dialogBG);
+    }
+
+    private static function removeDialogBg():void {
+        if (!_dialogBG) {
+            return;
+        }
+        try {
+            MainGame.I.root.removeChild(_dialogBG);
+        }
+        catch (e:Error) {
+        }
+    }
+
+    private static function onDialogBgClick(e:MouseEvent):void {
+        closeTopDialog();
     }
 
     private static function fadIn(d:BaseDialog, back:Function = null):void {

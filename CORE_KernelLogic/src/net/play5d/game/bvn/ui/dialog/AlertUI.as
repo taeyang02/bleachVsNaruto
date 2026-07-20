@@ -17,6 +17,8 @@
  */
 
 package net.play5d.game.bvn.ui.dialog {
+import flash.events.MouseEvent;
+
 public class AlertUI extends MusouConfrimUI {
     include '../../../../../../../include/_INCLUDE_OVERRIDE_.as';
 
@@ -28,11 +30,27 @@ public class AlertUI extends MusouConfrimUI {
     protected override function build():void {
         super.build();
 
-        _noBtn.visible = false;
-
-        _yesBtn.x = 253;
+        if (_noBtn) {
+            _noBtn.visible = false;
+        }
+        if (_yesBtn) {
+            _yesBtn.x = 253;
+        }
+        else if (_dialogUI) {
+            // Legacy dialog SWF may miss yes button — click dialog to close
+            _dialogUI.buttonMode = true;
+            _dialogUI.addEventListener(MouseEvent.CLICK, onDialogClickClose);
+        }
     }
 
+    private function onDialogClickClose(e:MouseEvent):void {
+        if (yesBack != null) {
+            yesBack();
+        }
+        else {
+            closeSelf();
+        }
+    }
 
 }
 }
