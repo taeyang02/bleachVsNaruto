@@ -20,20 +20,32 @@ package net.play5d.game.bvn.utils {
 public class GameLogger {
     include '../../../../../../include/_INCLUDE_.as';
 
+    private static var _loger:Object;
 
-//		private static var _loger:ILoger;
-
+    /**
+     * 设置日志记录器（Windows 端写入文件）。
+     *
+     * @param v 实现 log(String) 的对象，可为 null
+     */
     public static function setLoger(v:Object):void {
-//			_loger = v;
+        _loger = v;
     }
 
+    /**
+     * 输出日志：优先写文件，同时 trace。
+     *
+     * @param v 日志内容
+     */
     public static function log(v:String):void {
-//			if(_loger){
-//				_loger.log(v);
-//			}else{
-//				trace(v);
-//			}
         trace(v);
+        if (_loger) {
+            try {
+                _loger.log(v);
+            }
+            catch (e:Error) {
+                trace('GameLogger file write failed:', e);
+            }
+        }
     }
 
     public function GameLogger() {

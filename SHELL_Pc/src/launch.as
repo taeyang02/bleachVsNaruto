@@ -21,6 +21,9 @@ import flash.display.Sprite;
 import flash.display.StageDisplayState;
 import flash.events.Event;
 import flash.events.KeyboardEvent;
+import flash.events.UncaughtErrorEvent;
+import flash.text.TextField;
+import flash.text.TextFormat;
 import flash.ui.Keyboard;
 
 import net.play5d.game.bvn.GameQuality;
@@ -53,6 +56,7 @@ public class launch extends Sprite {
     }
     private var _mainGame:MainGame;
     private var _assetLoader:AssetLoader = new AssetLoader();
+    private var _errorTf:TextField;
 
     private function safeFail(...param):void {
         trace('safe fail !');
@@ -65,11 +69,14 @@ public class launch extends Sprite {
         _mainGame = new MainGame();
         //_mainGame.initlize(this , stage , initBackHandler , initFailHandler);
         _mainGame.initlize(this, stage, function ():void {
+            GameLogger.log('ResUtils UI SWFs ready -> goLanguage');
             _mainGame.goLanguage(function ():void {
+                GameLogger.log('language selected, font=' + FONT.fontName);
                 trace('字体名称：' + FONT.fontName);
                 UIUtils.LOCK_FONT = FONT.fontName;
 
                 GameData.I.saveData();
+                GameLogger.log('start initalizeLoad (GameLoadingStage)');
                 _mainGame.initalizeLoad(initBackHandler, initFailHandler);
             });
 
@@ -84,7 +91,7 @@ public class launch extends Sprite {
 
     private function initBackHandler():void {
 
-        GameLogger.log('init ok');
+        GameLogger.log('init ok -> UIAssetUtil / goLogo');
 
         UIAssetUtil.I.initalize(_mainGame.goLogo);
         //			_mainGame.goMenu();
@@ -92,7 +99,47 @@ public class launch extends Sprite {
     }
 
     private function initFailHandler(msg:String):void {
-        GameLogger.log('init fail');
+        var text:String = 'init fail' + (msg ? (': ' + msg) : '');
+        GameLogger.log(text);
+        showFatal(text);
+    }
+
+    private function showFatal(msg:String):void {
+        try {
+            if (!_errorTf) {
+                _errorTf                   = new TextField();
+                _errorTf.width             = 780;
+                _errorTf.height            = 580;
+                _errorTf.x                 = 10;
+                _errorTf.y                 = 10;
+                _errorTf.multiline         = true;
+                _errorTf.wordWrap          = true;
+                _errorTf.selectable        = true;
+                _errorTf.defaultTextFormat = new TextFormat('_sans', 14, 0xff4444);
+                addChild(_errorTf);
+            }
+            _errorTf.text = msg +
+                            '\n\nSee log.log under AIR applicationStorageDirectory' +
+                            '\n(AppData\\Roaming\\...\\Local Store\\log.log)';
+            setChildIndex(_errorTf, numChildren - 1);
+        }
+        catch (e:Error) {
+            trace(e);
+        }
+    }
+
+    private function onUncaughtError(e:UncaughtErrorEvent):void {
+        e.preventDefault();
+        var err:* = e.error;
+        var msg:String;
+        if (err is Error) {
+            msg = Error(err).message + '\n' + Error(err).getStackTrace();
+        }
+        else {
+            msg = String(err);
+        }
+        GameLogger.log('UNCAUGHT: ' + msg);
+        showFatal('UNCAUGHT:\n' + msg);
     }
 
     private function initlize(e:Event = null):void {
@@ -101,6 +148,15 @@ public class launch extends Sprite {
 
         removeEventListener(Event.ADDED_TO_STAGE, initlize);
         STAGE = stage;
+
+        // Captive runtime: surface crashes that otherwise look like a black hang
+        try {
+            loaderInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, onUncaughtError);
+            stage.loaderInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, onUncaughtError);
+        }
+        catch (ue:Error) {
+            GameLogger.log('uncaughtErrorEvents setup failed: ' + ue.message);
+        }
 
         ResUtils.swfLib = new SwfLib();
         AssetManager.I.setAssetLoader(_assetLoader);

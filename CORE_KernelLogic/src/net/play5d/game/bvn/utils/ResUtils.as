@@ -187,17 +187,19 @@ public class ResUtils {
 
     public function createDisplayObject(embedSwf:Class, itemName:String):* {
         var cls:Class = getItemClass(embedSwf, itemName);
-        if (cls) {
-            var d:* = new cls();
-            if (d is Sprite) {
-                var mc:Sprite         = d as Sprite;
-                var st:SoundTransform = mc.soundTransform;
-                st.volume             = GameData.I.config.soundVolume;
-                mc.soundTransform     = st;
-                return mc;
-            }
-            return d;
+        if (!cls) {
+            GameLogger.log('ResUtils.createDisplayObject missing: ' + itemName);
+            throw new Error('UI symbol not found: ' + itemName);
         }
+        var d:* = new cls();
+        if (d is Sprite) {
+            var mc:Sprite         = d as Sprite;
+            var st:SoundTransform = mc.soundTransform;
+            st.volume             = GameData.I.config.soundVolume;
+            mc.soundTransform     = st;
+            return mc;
+        }
+        return d;
     }
 
     public function createBitmapData(embedSwf:Class, itemName:String, width:int, height:int):BitmapData {

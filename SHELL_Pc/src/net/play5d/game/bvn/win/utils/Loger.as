@@ -23,25 +23,36 @@ import flash.filesystem.FileStream;
 
 import net.play5d.game.bvn.interfaces.ILogger;
 
+/**
+ * Windows 文件日志。写入 applicationStorageDirectory（可写），
+ * 避免 AIR captive 下 applicationDirectory 只读导致静默失败。
+ */
 public class Loger implements ILogger {
     private static var _file:File;
-    private static var _fileStream:FileStream;
 
     public function Loger() {
     }
 
+    /**
+     * 追加一行到 log.log。
+     *
+     * @param v 日志内容
+     */
     public function log(v:String):void {
-
         trace(v);
 
-        if (!_file) {
-            _file = new File(File.applicationDirectory.nativePath + '/log.log');
+        try {
+            if (!_file) {
+                _file = File.applicationStorageDirectory.resolvePath('log.log');
+            }
+            var stream:FileStream = new FileStream();
+            stream.open(_file, FileMode.APPEND);
+            stream.writeUTFBytes(v + '\r\n');
+            stream.close();
         }
-        _fileStream = new FileStream();
-        _fileStream.open(_file, FileMode.APPEND);
-        _fileStream.writeUTFBytes(v + '\r\n');
-        _fileStream.close();
-        _fileStream = null;
+        catch (e:Error) {
+            trace('Loger.write failed', e);
+        }
     }
 
 }
