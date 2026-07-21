@@ -30,6 +30,11 @@ import net.play5d.game.bvn.win.utils.MsgType;
  * 锁帧算法，客户端
  */
 public class LockFrameClientLogic {
+    /** Only hard-correct position when drift exceeds this (px) — small gaps are latency artifacts */
+    private static const SYNC_POS_EPS:int = 30;
+    /** Only hard-correct hp/qi when drift exceeds this */
+    private static const SYNC_VAL_EPS:int = 10;
+
     public function LockFrameClientLogic() {
     }
     public var enabled:Boolean = true;
@@ -102,7 +107,9 @@ public class LockFrameClientLogic {
             return false;
         }
 
-        _updateCache = {};
+        // Do NOT clear _updateCache: host keeps its cache, so wiping ours
+        // makes the two sides apply different inputs for several frames
+        // (visible as different combos on each screen).
 
         var frame:int = msgArr.readShort();
         var round:int = msgArr.readByte();
@@ -129,26 +136,24 @@ public class LockFrameClientLogic {
                 return true;
             }
 
-            GameCtrl.I.gameRunData.gameTime = time;
+            // Timer: minor jitter is latency, not desync
+            if (Math.abs(GameCtrl.I.gameRunData.gameTime - time) > 2) {
+                GameCtrl.I.gameRunData.gameTime = time;
+            }
 
             var p1:FighterMain = GameCtrl.I.gameRunData.p1FighterGroup.currentFighter;
             var p2:FighterMain = GameCtrl.I.gameRunData.p2FighterGroup.currentFighter;
 
-            p1.hp = p1hp;
-            p1.qi = p1qi;
-            p1.x  = p1x;
-            p1.y  = p1y;
-
-            p2.hp = p2hp;
-            p2.qi = p2qi;
-            p2.x  = p2x;
-            p2.y  = p2y;
+            // Snapshot is ~RTT old: force-writing every value rubber-bands the
+            // guest mid-combo. Only hard-correct on real drift.
+            applyFighterSync(p1, p1hp, p1qi, p1x, p1y);
+            applyFighterSync(p2, p2hp, p2qi, p2x, p2y);
 
             if (p1.hp > 0 && !p1.isAlive) {
                 p1.relive();
             }
 
-            if (p2.hp > 0 && !p1.isAlive) {
+            if (p2.hp > 0 && !p2.isAlive) {
                 p2.relive();
             }
 
@@ -184,10 +189,9 @@ public class LockFrameClientLogic {
 
             InputManager.I.socket_input_p2.renderInput();
 
-            if (_clientFrame % 2 == 0) {
-                sendCtrl();
-            }
-//				sendCtrl();
+            // Send every frame: tiny packets, halves input latency and
+            // survives packet loss (host otherwise keeps stale bits)
+            sendCtrl();
 
             return true;
         }
@@ -195,17 +199,11 @@ public class LockFrameClientLogic {
     }
 
     private function sendCtrl():void {
-//			InputManager.I.socket_input_p2.renderInput();
-
         var k:int = InputManager.I.socket_input_p2.getSocketData();
-        if (_lastSendK == k && !_sendAnyWay) {
-            return;
-        }
 
         _sendAnyWay = false;
 
         InputManager.I.socket_input_p2.resetInput();
-//			LANClientCtrl.I.send([_clientFrame , k]);
 
         var byte:ByteArray = new ByteArray();
         byte.writeByte(MsgType.INPUT_SEND);
@@ -216,9 +214,38 @@ public class LockFrameClientLogic {
         _lastSendK = k;
     }
 
+    /**
+     * Hard-correct one fighter only when drift is beyond thresholds.
+     */
+    private function applyFighterSync(f:FighterMain, hp:int, qi:int, x:int, y:int):void {
+        if (!f) {
+            return;
+        }
+        if (Math.abs(f.hp - hp) > SYNC_VAL_EPS) {
+            f.hp = hp;
+        }
+        if (Math.abs(f.qi - qi) > SYNC_VAL_EPS) {
+            f.qi = qi;
+        }
+        if (Math.abs(f.x - x) > SYNC_POS_EPS) {
+            f.x = x;
+        }
+        if (Math.abs(f.y - y) > SYNC_POS_EPS) {
+            f.y = y;
+        }
+    }
+
     private function cacheUpdate():void {
         for (var i:int = _serverFrame; i < _serverNextFrame; i++) {
             _updateCache[i] = [_serverK, _clientK];
+        }
+
+        // Prune stale windows so the cache object stays small
+        var oldest:int = _clientFrame - LANUtils.LOCK_KEYFRAME * 4;
+        for (var key:String in _updateCache) {
+            if (int(key) < oldest) {
+                delete _updateCache[key];
+            }
         }
     }
 

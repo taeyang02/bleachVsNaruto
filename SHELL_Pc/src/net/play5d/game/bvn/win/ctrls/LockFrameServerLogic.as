@@ -48,12 +48,16 @@ public class LockFrameServerLogic {
     private var _updateCache:Object = {};
 
     public function reset():void {
-        _renderFrame     = 0;
-        _renderNextFrame = 0;
-        _clientK         = -1;
-        _serverK         = 0;
-        _syncUpdateArr   = null;
-        _sendUpdateFrame = 0;
+        _renderFrame         = 0;
+        _renderNextFrame     = 0;
+        _renderSyncFrame     = 0;
+        _clientFrame         = 0;
+        _clientK             = -1;
+        _serverK             = 0;
+        _syncUpdateArr       = null;
+        _sendUpdateFrame     = 0;
+        _sendUpdateSyncFrame = 0;
+        _updateCache         = {};
     }
 
     public function dispose():void {
@@ -104,10 +108,6 @@ public class LockFrameServerLogic {
 
         renderUpdate();
 
-        if (_renderSyncFrame > LANUtils.SYNC_GAP) {
-            _syncUpdateArr = getSyncUpdate();
-        }
-
         return true;
     }
 
@@ -155,10 +155,13 @@ public class LockFrameServerLogic {
     }
 
     private function sendSyncUpdate():void {
+        // Snapshot AT send time — a stale snapshot rubber-bands the guest.
+        // NEVER clear _updateCache here: both sides must keep applying the
+        // exact same input stream or their simulations diverge (combo desync).
+        _syncUpdateArr = getSyncUpdate();
         if (!_syncUpdateArr) {
             return;
         }
-        _updateCache = {};
         LANServerCtrl.I.sendUDP(_syncUpdateArr);
     }
 
@@ -202,6 +205,14 @@ public class LockFrameServerLogic {
     private function cacheUpdate():void {
         for (var i:int = _renderFrame; i < _renderNextFrame; i++) {
             _updateCache[i] = [_serverK, _clientK];
+        }
+
+        // Prune stale windows so the cache object stays small
+        var oldest:int = _renderFrame - LANUtils.LOCK_KEYFRAME * 4;
+        for (var key:String in _updateCache) {
+            if (int(key) < oldest) {
+                delete _updateCache[key];
+            }
         }
     }
 
