@@ -393,8 +393,12 @@ public class GameCtrl {
             // 返回选人（联机由 LAN returnToRoom 接管）
             TraceLang('debug.trace.data.game_ctrl.back_select');
 
+            // GAME_END 监听器（联机 returnToRoom）会同步把 backToSelectOnFightEnd
+            // 重置为 true，因此必须先捕获当前值，避免联机结束后误跳选人界面
+            // 导致刚创建的房间被销毁、对端掉线
+            var backToSelect:Boolean = backToSelectOnFightEnd;
             GameEvent.dispatchEvent(GameEvent.GAME_END);
-            if (backToSelectOnFightEnd) {
+            if (backToSelect) {
                 MainGame.I.goSelect();
             }
         }
