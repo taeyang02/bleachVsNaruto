@@ -40,6 +40,7 @@ import net.play5d.game.bvn.win.GameInterfaceManager;
 import net.play5d.game.bvn.win.MosouDebugger;
 import net.play5d.game.bvn.win.SwfLib;
 import net.play5d.game.bvn.win.utils.Loger;
+import net.play5d.game.bvn.win.utils.SoundConfigHUD;
 import net.play5d.game.bvn.win.utils.UIAssetUtil;
 
 [SWF(width='800', height='600', frameRate='30', backgroundColor='#000000')]
@@ -91,6 +92,9 @@ public class launch extends Sprite {
         GameLogger.log('init ok -> UIAssetUtil / goLogo');
 
         UIAssetUtil.I.initalize(_mainGame.goLogo);
+
+        // Top-right sound config button (auto hides in-match)
+        SoundConfigHUD.I.init(stage);
         //			_mainGame.goMenu();
         //			_mainGame.goCongratulations();
     }
