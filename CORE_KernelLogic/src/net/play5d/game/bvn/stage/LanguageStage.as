@@ -41,8 +41,12 @@ public class LanguageStage implements IStage {
 
     /**
      * Skip language select UI: load font + lang JSON for saved/default locale, then callback.
-     * @param back success callback
-     * @param fail fail callback
+     *
+     * <p>Never blocks startup — any missing file falls back and finally continues,
+     * because packaged builds may not ship every language json.</p>
+     *
+     * @param back success callback (always eventually called)
+     * @param fail fail callback (only when even the font cannot be loaded)
      */
     public static function applyLanguageAuto(back:Function = null, fail:Function = null):void {
         AssetManager.I.loadJSON('config/language.json', onConfigOk, onConfigFail);
@@ -54,10 +58,10 @@ public class LanguageStage implements IStage {
         }
 
         function onConfigOk(data:Object):void {
-            var lang:String     = GameData.I.config.language;
-            var fontDir:String  = data['font_dir'];
+            var lang:String        = GameData.I.config.language;
+            var fontDir:String     = data['font_dir'];
             var languagesObj:Array = data['languages'];
-            var fontFile:String = null;
+            var fontFile:String    = null;
 
             if (!LanguageType.isSupported(lang)) {
                 lang = LanguageType.ENGLISH;
@@ -99,8 +103,27 @@ public class LanguageStage implements IStage {
                 LANGUAGE                   = lang;
                 FONT                       = new fontCls() as Font;
 
-                MultiLangUtils.I.initialize(lang, back, onConfigFail);
+                loadLangJsonWithFallback(lang);
             });
+        }
+
+        // Packaged builds may only ship some jsons (e.g. zh-CN/ja) — try
+        // selected lang, then zh-CN, then continue without lang texts.
+        function loadLangJsonWithFallback(lang:String):void {
+            MultiLangUtils.I.initialize(lang, back, function ():void {
+                if (lang != LanguageType.CHINESE_SIMPLIFIED) {
+                    MultiLangUtils.I.initialize(LanguageType.CHINESE_SIMPLIFIED, back, proceedAnyway);
+                }
+                else {
+                    proceedAnyway();
+                }
+            });
+        }
+
+        function proceedAnyway():void {
+            if (back != null) {
+                back();
+            }
         }
     }
 
